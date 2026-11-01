@@ -397,6 +397,37 @@ export async function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(user_id, week_start_date)
     );
+
+    CREATE TABLE IF NOT EXISTS focus_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      task_id TEXT,
+      goal_id TEXT,
+      title TEXT NOT NULL,
+      target_duration_minutes INTEGER NOT NULL,
+      actual_duration_seconds INTEGER DEFAULT 0,
+      interrupted INTEGER DEFAULT 0,
+      interruption_reason TEXT,
+      status TEXT DEFAULT 'completed', -- 'completed', 'interrupted', 'in_progress'
+      started_at TEXT NOT NULL,
+      completed_at TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS quick_capture_items (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL, -- 'task', 'idea', 'expense', 'reminder', 'note', 'project_idea', 'goal', 'problem'
+      content TEXT NOT NULL,
+      category TEXT DEFAULT 'general',
+      assigned_to TEXT,
+      is_processed INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      processed_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   try {
@@ -455,6 +486,54 @@ export async function initDatabase() {
 
   try {
     await db.execute("ALTER TABLE daily_tasks ADD COLUMN recurrence TEXT DEFAULT 'none'");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE daily_tasks ADD COLUMN is_daily_priority INTEGER DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE goals ADD COLUMN target_value REAL DEFAULT 100");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE goals ADD COLUMN current_value REAL DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE goals ADD COLUMN unit TEXT DEFAULT '%'");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE goals ADD COLUMN currency TEXT DEFAULT 'ETB'");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN tasks_completed INTEGER DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN tasks_missed INTEGER DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN goals_progressed INTEGER DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN actual_spending REAL DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN savings_progress REAL DEFAULT 0");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN suggestions_json TEXT");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE weekly_reviews ADD COLUMN status TEXT DEFAULT 'draft'");
   } catch (_) {}
 
   isInitialized = true;

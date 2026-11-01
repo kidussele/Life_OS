@@ -69,6 +69,7 @@ export interface DailyTask {
   priority: "high" | "medium" | "low";
   status: "upcoming" | "starting_soon" | "in_progress" | "completed" | "missed" | "rescheduled" | "skipped";
   is_protected: number;
+  is_daily_priority?: number;
   reschedule_reason?: string | null;
   skip_reason?: string | null;
   notes?: string | null;
@@ -89,6 +90,10 @@ export interface Goal {
   deadline: string;
   priority: "high" | "medium" | "low";
   progress: number;
+  target_value?: number;
+  current_value?: number;
+  unit?: string;
+  currency?: string;
   status: "not_started" | "in_progress" | "completed" | "on_hold";
   completion_criteria: string;
   created_at: string;
@@ -243,13 +248,54 @@ export interface WeeklyReview {
   user_id: string;
   week_start_date: string;
   week_end_date: string;
-  completed_tasks_count: number;
-  missed_tasks_count: number;
-  total_focus_minutes: number;
-  wins_reflection: string;
-  challenges_reflection: string;
-  adjustments_plan: string;
+  completed_tasks_count?: number;
+  missed_tasks_count?: number;
+  total_focus_minutes?: number;
+  wins_reflection?: string;
+  challenges_reflection?: string;
+  adjustments_plan?: string;
   proposed_schedule?: string | null;
+  reflection?: string;
+  learnings?: string;
+  improvements?: string;
+  next_week_priorities?: string;
+  overall_score?: number;
+  tasks_completed?: number;
+  tasks_missed?: number;
+  goals_progressed?: number;
+  actual_spending?: number;
+  savings_progress?: number;
+  suggestions_json?: any;
+  status?: string;
+  created_at?: string;
+}
+
+export interface FocusSession {
+  id: string;
+  user_id: string;
+  task_id?: string | null;
+  goal_id?: string | null;
+  title: string;
+  target_duration_minutes: number;
+  actual_duration_seconds: number;
+  interrupted: number;
+  interruption_reason?: string | null;
+  status: "completed" | "interrupted" | "in_progress";
+  started_at: string;
+  completed_at?: string | null;
+  notes?: string | null;
   created_at: string;
+}
+
+export interface QuickCaptureItem {
+  id: string;
+  user_id: string;
+  type: "task" | "idea" | "expense" | "reminder" | "note" | "project_idea" | "goal" | "problem";
+  content: string;
+  category: string;
+  assigned_to?: string | null;
+  is_processed: number;
+  created_at: string;
+  processed_at?: string | null;
 }
 

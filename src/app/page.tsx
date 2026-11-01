@@ -412,6 +412,7 @@ export default function DashboardPage() {
   const [finances, setFinances] = useState<any>(null);
   const [forexStats, setForexStats] = useState<any>(null);
   const [sleepHours, setSleepHours] = useState(6.0);
+  const [intelligence, setIntelligence] = useState<any>(null);
   const [statusSummary, setStatusSummary] = useState({
     completed: 0,
     inProgress: 0,
@@ -493,6 +494,13 @@ export default function DashboardPage() {
           if (wakeMins < bedMins) wakeMins += 24 * 60;
           setSleepHours(Number(((wakeMins - bedMins) / 60).toFixed(1)));
         }
+      }
+
+      // Fetch Life Intelligence Recommendations
+      const intelRes = await fetch(`/api/intelligence?timezone=${encodeURIComponent(timezone)}`);
+      if (intelRes.ok) {
+        const intelData = await intelRes.json();
+        setIntelligence(intelData.data);
       }
     } catch (e) {
       console.warn("Could not fetch dashboard data from API:", e);
@@ -774,9 +782,123 @@ export default function DashboardPage() {
         {/* 3-COLUMN MASTER DASHBOARD GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* ========================================================
-              LEFT COLUMN (COL 1-8): TODAY'S SCHEDULE & CATEGORIES
+              LEFT COLUMN (COL 1-8): INTELLIGENCE & SCHEDULE
               ======================================================== */}
           <div className="lg:col-span-8 space-y-5">
+            {/* LIFE INTELLIGENCE HUB (Phase 7 Proactive Engine) */}
+            {intelligence && (
+              <div className="bg-white rounded-3xl p-6 border border-[#D5E2D9] shadow-xs space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#F0F4F2]">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#EBF5EE] text-[#165B33] flex items-center justify-center">
+                      <Sparkles size={17} />
+                    </div>
+                    <div>
+                      <h2 className="text-[16px] font-extrabold text-[#14211A] leading-tight">
+                        Life Intelligence &amp; Strategic Guidance
+                      </h2>
+                      <p className="text-[11.5px] text-[#6C8176]">
+                        Proactive analysis across sleep, domain balance, and milestone bottlenecks
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-[#165B33] bg-[#EBF5EE] px-2.5 py-1 rounded-full border border-[#D5E6DC]">
+                      Balance Score: {intelligence.lifeProgressScore}%
+                    </span>
+                    <Link
+                      href="/planner"
+                      className="text-[11.5px] font-bold text-[#165B33] hover:underline flex items-center gap-0.5"
+                    >
+                      <span>Smart Planner →</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* 3 Strategic Indicators */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Indicator 1: Strongest Domain */}
+                  <div className="p-3 rounded-2xl bg-[#F7FAF8] border border-[#E2E9E4]">
+                    <div className="text-[10.5px] font-bold uppercase tracking-wider text-[#165B33]">
+                      Strongest Life Domain
+                    </div>
+                    <div className="text-[14.5px] font-bold text-[#14211A] mt-1">
+                      {intelligence.strongestCategory?.name || "Spiritual Life"}
+                    </div>
+                    <div className="text-[11px] text-[#6C8176]">
+                      {intelligence.strongestCategory?.score || 0}% Execution Fidelity
+                    </div>
+                  </div>
+
+                  {/* Indicator 2: Most Neglected Domain */}
+                  <div className="p-3 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A]">
+                    <div className="text-[10.5px] font-bold uppercase tracking-wider text-[#B45309]">
+                      Needs Attention
+                    </div>
+                    <div className="text-[14.5px] font-bold text-[#14211A] mt-1">
+                      {intelligence.mostNeglectedCategory?.name || "Health & Fitness"}
+                    </div>
+                    <div className="text-[11px] text-[#B45309]">
+                      {intelligence.mostNeglectedCategory?.score || 0}% Completion Record
+                    </div>
+                  </div>
+
+                  {/* Indicator 3: Sleep Schedule Audit */}
+                  <div className={`p-3 rounded-2xl border ${intelligence.sleepAudit?.isDeficit ? "bg-[#FFFBEB] border-[#FDE68A]" : "bg-[#F7FAF8] border-[#E2E9E4]"}`}>
+                    <div className="text-[10.5px] font-bold uppercase tracking-wider text-[#B45309]">
+                      Sleep Audit ({intelligence.sleepAudit?.calculatedHours || 6.0}h vs {intelligence.sleepAudit?.targetHours || 7.5}h)
+                    </div>
+                    <div className="text-[14.5px] font-bold text-[#14211A] mt-1">
+                      {intelligence.sleepAudit?.statusLabel}
+                    </div>
+                    <div className="text-[11px] text-[#6C8176]">
+                      Bed: {intelligence.sleepAudit?.bedTime} • Wake: {intelligence.sleepAudit?.wakeTime}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recommendations List with "Why" Rationale */}
+                <div className="space-y-2.5 pt-1">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#6C8176]">
+                    Proactive Action Guidance
+                  </div>
+                  {(intelligence.recommendations || []).slice(0, 3).map((rec: any) => (
+                    <div
+                      key={rec.id}
+                      className="p-3.5 rounded-2xl bg-[#F7FAF8] border border-[#E2E9E4] hover:border-[#CBD7CE] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13px] font-bold text-[#14211A]">
+                            {rec.title}
+                          </span>
+                          <span className="text-[9.5px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-white text-[#6C8176] border border-[#E2E9E4]">
+                            {rec.type}
+                          </span>
+                        </div>
+                        <p className="text-[12px] text-[#4F6A5B] leading-relaxed">
+                          {rec.description}
+                        </p>
+                        <p className="text-[11px] text-[#345140] font-medium">
+                          <strong>Why:</strong> {rec.rationale}
+                        </p>
+                      </div>
+
+                      {rec.actionHref && (
+                        <Link
+                          href={rec.actionHref}
+                          className="px-3.5 py-1.5 bg-white hover:bg-[#EBF5EE] text-[#165B33] text-[11.5px] font-bold rounded-xl border border-[#CBD7CE] shadow-2xs transition-colors flex-shrink-0 text-center"
+                        >
+                          {rec.actionLabel || "Take Action →"}
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* TODAY'S SCHEDULE CARD (Visual Centerpiece) */}
             <div className="os-card p-6 sm:p-7 bg-white">
               {/* Header */}
@@ -1299,7 +1421,7 @@ export default function DashboardPage() {
                     <span className="text-[13px] font-bold text-[#14211A]">{sleepHours}h</span>
                   </div>
                   <span className="text-[11px] text-[#B47805] font-semibold leading-tight">
-                    Sleep ({sleepHours >= 7 ? "Optimal" : "Target 7.5h"})
+                    Sleep ({sleepHours >= 7.5 ? "Optimal" : "Target 7.5h (Deficit)"})
                   </span>
                 </div>
               </div>
@@ -1436,7 +1558,7 @@ export default function DashboardPage() {
                         pBg: "bg-[#FEE8E8] text-[#D93838] border border-red-200",
                       },
                       {
-                        title: "Emergency reserve (50,000 ETB)",
+                        title: "Emergency reserve (90,000 ETB)",
                         cat: "Financial",
                         date: "Dec 31, 2026",
                         remaining: "60 days left",

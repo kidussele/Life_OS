@@ -18,9 +18,12 @@ import {
   Menu,
   ArrowRight,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { useTimeEngine } from "@/hooks/useTimeEngine";
 import { DailyTask } from "@/lib/types";
+import { FocusModeModal } from "@/components/FocusModeModal";
+import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 
 interface HeaderProps {
   onOpenMobileMenu?: () => void;
@@ -72,6 +75,43 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  // Global Quick Capture & Focus Mode State
+  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+  const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
+  const [focusTask, setFocusTask] = useState<{ id?: string; title?: string } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is actively typing in an input or textarea
+      const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const isInput = targetTag === "input" || targetTag === "textarea" || (e.target as HTMLElement)?.isContentEditable;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "q") {
+        e.preventDefault();
+        setIsQuickCaptureOpen((prev) => !prev);
+      } else if (!isInput && e.key === "q") {
+        setIsQuickCaptureOpen(true);
+      }
+    };
+
+    const handleOpenCapture = () => setIsQuickCaptureOpen(true);
+    const handleOpenFocus = (e: any) => {
+      if (e?.detail) {
+        setFocusTask({ id: e.detail.taskId, title: e.detail.taskTitle });
+      }
+      setIsFocusModeOpen(true);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("open_quick_capture", handleOpenCapture);
+    window.addEventListener("open_focus_mode", handleOpenFocus as EventListener);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open_quick_capture", handleOpenCapture);
+      window.removeEventListener("open_focus_mode", handleOpenFocus as EventListener);
+    };
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -341,6 +381,31 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
           )}
         </div>
 
+        {/* Quick Capture Button (Ctrl+Q) */}
+        <button
+          type="button"
+          onClick={() => setIsQuickCaptureOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#EBF5EE] hover:bg-[#DCFCE7] text-[#165B33] text-[12px] font-bold rounded-full transition-all border border-[#D5E6DC] shadow-2xs cursor-pointer"
+          title="Universal Quick Capture (Ctrl+Q or press Q)"
+        >
+          <Zap size={13} className="text-[#165B33]" />
+          <span className="hidden sm:inline">Capture</span>
+        </button>
+
+        {/* Focus Mode Button */}
+        <button
+          type="button"
+          onClick={() => {
+            setFocusTask(null);
+            setIsFocusModeOpen(true);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#165B33] hover:bg-[#124B2C] text-white text-[12px] font-bold rounded-full transition-all shadow-xs cursor-pointer"
+          title="Start Distraction-Free Focus Mode Timer"
+        >
+          <Sparkles size={13} />
+          <span className="hidden sm:inline">Focus</span>
+        </button>
+
         {/* Notifications Icon with Dynamic Badge & Dropdown */}
         <div className="relative">
           <button
@@ -449,6 +514,22 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
           <ChevronDown size={14} className="text-[#6C8176]" />
         </Link>
       </div>
+
+      {/* Global Quick Capture Modal */}
+      <QuickCaptureModal
+        isOpen={isQuickCaptureOpen}
+        onClose={() => setIsQuickCaptureOpen(false)}
+        onItemAdded={fetchTasksForSummary}
+      />
+
+      {/* Global Focus Mode Timer Modal */}
+      <FocusModeModal
+        isOpen={isFocusModeOpen}
+        onClose={() => setIsFocusModeOpen(false)}
+        initialTaskId={focusTask?.id}
+        initialTaskTitle={focusTask?.title}
+        onSessionSaved={fetchTasksForSummary}
+      />
     </header>
   );
 }

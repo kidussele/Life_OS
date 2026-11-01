@@ -24,6 +24,7 @@ import {
   Sprout,
   Compass,
   X,
+  Sparkles,
 } from "lucide-react";
 
 interface NavItem {
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Life Journey", href: "/journey", icon: Compass, badge: "Roadmap" },
   { name: "Calendar", href: "/calendar", icon: Calendar },
+  { name: "Smart Planner", href: "/planner", icon: Sparkles, badge: "Weekly" },
   { name: "Goals", href: "/goals", icon: Target },
   { name: "Life Categories", href: "/categories", icon: Grid },
   { name: "Discipline", href: "/discipline", icon: Flame },

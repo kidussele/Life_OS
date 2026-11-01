@@ -41,6 +41,8 @@ export async function exportDatabaseBackup(userId = "user_kidus_01"): Promise<Da
     "family_logs",
     "notifications",
     "weekly_reviews",
+    "focus_sessions",
+    "quick_capture_items",
   ];
 
   const tables: Record<string, any[]> = {};
@@ -107,6 +109,8 @@ export async function executeCleanDataReset(options: {
     "family_logs",
     "notifications",
     "weekly_reviews",
+    "focus_sessions",
+    "quick_capture_items",
   ];
 
   for (const table of operationalTables) {

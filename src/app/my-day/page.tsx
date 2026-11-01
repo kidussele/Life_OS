@@ -35,6 +35,9 @@ import {
   Plus,
   Timer,
   Zap,
+  Star,
+  Edit3,
+  StickyNote,
 } from "lucide-react";
 import { DailyTask, DailyReflection } from "@/lib/types";
 import { useTimeEngine } from "@/hooks/useTimeEngine";
@@ -52,8 +55,15 @@ export default function MyDayPage() {
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
+  const [selectedDate, setSelectedDate] = useState<string>("2026-11-02");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [todayFocusMinutes, setTodayFocusMinutes] = useState(0);
+
+  // Daily Priorities and Notes/Edit Modal State
+  const [priorityWarning, setPriorityWarning] = useState<string | null>(null);
+  const [editTaskModal, setEditTaskModal] = useState<DailyTask | null>(null);
+  const [taskNotesModal, setTaskNotesModal] = useState<DailyTask | null>(null);
+  const [taskNotesContent, setTaskNotesContent] = useState("");
 
   // Sleep Advisory Dismiss
   const [isSleepDismissed, setIsSleepDismissed] = useState(false);
@@ -104,16 +114,23 @@ export default function MyDayPage() {
   const [newTaskInstructions, setNewTaskInstructions] = useState("");
   const [isAddingTask, setIsAddingTask] = useState(false);
 
-  // Fetch Day Data with timezone awareness
+  // Fetch Day Data with timezone awareness and actual focus minutes
   const fetchDayData = async (dateStr?: string) => {
     setLoading(true);
-    const date = dateStr || selectedDate || timeState.dateStr || "2026-11-01";
+    const date = dateStr || selectedDate || timeState.dateStr || "2026-11-02";
     setSelectedDate(date);
     try {
-      const res = await fetch(`/api/tasks?date=${date}&timezone=${encodeURIComponent(timezone)}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [resTasks, resFocus] = await Promise.all([
+        fetch(`/api/tasks?date=${date}&timezone=${encodeURIComponent(timezone)}`),
+        fetch(`/api/focus`),
+      ]);
+      if (resTasks.ok) {
+        const data = await resTasks.json();
         setTasks(data.tasks || []);
+      }
+      if (resFocus.ok) {
+        const fData = await resFocus.json();
+        setTodayFocusMinutes(fData.todayMinutes || 0);
       }
     } catch (e) {
       console.error("Error loading tasks:", e);
@@ -131,6 +148,97 @@ export default function MyDayPage() {
     window.addEventListener("life_os_task_updated", handleUpdate);
     return () => window.removeEventListener("life_os_task_updated", handleUpdate);
   }, [selectedDate, timezone]);
+
+  // Launch Focus Mode for a task
+  const handleLaunchFocus = (task: DailyTask) => {
+    window.dispatchEvent(
+      new CustomEvent("open_focus_mode", {
+        detail: { taskId: task.id, taskTitle: task.title },
+      })
+    );
+  };
+
+  // Toggle Daily Priority (Max 3)
+  const handleToggleDailyPriority = async (task: DailyTask) => {
+    const currentCount = tasks.filter((t) => t.is_daily_priority === 1).length;
+    const isEnabling = !task.is_daily_priority;
+
+    if (isEnabling && currentCount >= 3) {
+      setPriorityWarning("Maximum 3 daily priorities allowed. Unstar an existing priority first.");
+      setTimeout(() => setPriorityWarning(null), 4000);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: task.id,
+          is_daily_priority: isEnabling ? 1 : 0,
+        }),
+      });
+      if (res.ok) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? { ...t, is_daily_priority: isEnabling ? 1 : 0 } : t))
+        );
+        window.dispatchEvent(new Event("life_os_task_updated"));
+      }
+    } catch (err) {
+      console.error("Failed to toggle daily priority:", err);
+    }
+  };
+
+  // Save Task Notes
+  const handleSaveTaskNotes = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskNotesModal) return;
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: taskNotesModal.id,
+          instructions: taskNotesContent,
+        }),
+      });
+      if (res.ok) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskNotesModal.id ? { ...t, instructions: taskNotesContent } : t))
+        );
+        setTaskNotesModal(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Save Edit Task
+  const handleSaveEditTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTaskModal) return;
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editTaskModal.id,
+          title: editTaskModal.title,
+          start_time: editTaskModal.start_time,
+          end_time: editTaskModal.end_time,
+          category: editTaskModal.category,
+          priority: editTaskModal.priority,
+          instructions: editTaskModal.instructions,
+        }),
+      });
+      if (res.ok) {
+        await fetchDayData(selectedDate);
+        setEditTaskModal(null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleSaveSkip = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -625,6 +733,55 @@ export default function MyDayPage() {
             </span>
           )}
 
+          {/* Launch Focus Mode */}
+          {!isCompleted && !isSkipped && (
+            <button
+              type="button"
+              onClick={() => handleLaunchFocus(task)}
+              className="p-1.5 text-[#165B33] hover:bg-[#EBF5EE] rounded-lg transition-colors cursor-pointer"
+              title="Launch Distraction-Free Focus Mode"
+            >
+              <Sparkles size={14} />
+            </button>
+          )}
+
+          {/* Daily Priority Star */}
+          <button
+            type="button"
+            onClick={() => handleToggleDailyPriority(task)}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              task.is_daily_priority
+                ? "text-amber-500 hover:bg-amber-50"
+                : "text-[#B7C7BD] hover:text-amber-500 hover:bg-amber-50"
+            }`}
+            title={task.is_daily_priority ? "Remove from Top 3 Daily Priorities" : "Star as Daily Priority (Max 3)"}
+          >
+            <Star size={14} fill={task.is_daily_priority ? "currentColor" : "none"} />
+          </button>
+
+          {/* Add / View Note */}
+          <button
+            type="button"
+            onClick={() => {
+              setTaskNotesModal(task);
+              setTaskNotesContent(task.instructions || "");
+            }}
+            className="p-1.5 text-[#6C8176] hover:text-[#14211A] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer"
+            title="Add execution note / instructions"
+          >
+            <FileText size={14} />
+          </button>
+
+          {/* Edit Task */}
+          <button
+            type="button"
+            onClick={() => setEditTaskModal({ ...task })}
+            className="p-1.5 text-[#6C8176] hover:text-[#14211A] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer"
+            title="Edit task parameters"
+          >
+            <Edit3 size={14} />
+          </button>
+
           {/* Reschedule Button */}
           {!isCompleted && !isSkipped && (
             <button
@@ -636,10 +793,10 @@ export default function MyDayPage() {
                 setNewEndTime(task.end_time);
                 setRescheduleReason("");
               }}
-              className="p-1.5 text-[#6C8176] hover:text-[#14211A] hover:bg-[#F3F4F6] rounded-lg transition-colors"
+              className="p-1.5 text-[#6C8176] hover:text-[#14211A] hover:bg-[#F3F4F6] rounded-lg transition-colors cursor-pointer"
               title="Reschedule task"
             >
-              <Clock size={15} />
+              <Clock size={14} />
             </button>
           )}
 
@@ -651,10 +808,10 @@ export default function MyDayPage() {
                 setSkipTaskModal(task);
                 setSkipReasonText("");
               }}
-              className="p-1.5 text-[#6C8176] hover:text-[#DC2626] hover:bg-[#FEE2E2]/60 rounded-lg transition-colors"
+              className="p-1.5 text-[#6C8176] hover:text-[#DC2626] hover:bg-[#FEE2E2]/60 rounded-lg transition-colors cursor-pointer"
               title="Skip task"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           )}
         </div>
@@ -1094,6 +1251,50 @@ export default function MyDayPage() {
                 </Link>
               </div>
             )}
+
+            {/* Next 3 Scheduled Activities Preview Bar */}
+            <div className="pt-3 border-t border-white/15">
+              <div className="text-[11px] font-black uppercase tracking-wider text-emerald-300 mb-2 flex items-center gap-1.5">
+                <ArrowRight size={13} />
+                <span>Next 3 Scheduled Activities</span>
+              </div>
+              {tasks.filter((t) => t.status !== "completed" && t.status !== "skipped" && t.id !== actionGuidance.currentActivity?.id).slice(0, 3).length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {tasks
+                    .filter((t) => t.status !== "completed" && t.status !== "skipped" && t.id !== actionGuidance.currentActivity?.id)
+                    .slice(0, 3)
+                    .map((nextT, idx) => (
+                      <div
+                        key={nextT.id}
+                        className="bg-white/10 hover:bg-white/15 backdrop-blur-xs rounded-xl p-2.5 border border-white/15 transition-all group"
+                      >
+                        <div className="flex items-center justify-between text-[10px] text-white/70 font-mono">
+                          <span className="font-bold text-emerald-300">#{idx + 1} {nextT.start_time}–{nextT.end_time}</span>
+                          <span className="uppercase text-[9px] bg-white/10 px-1.5 py-0.2 rounded font-sans">{nextT.category}</span>
+                        </div>
+                        <div className="text-[12.5px] font-bold text-white truncate mt-1 group-hover:text-emerald-200">
+                          {nextT.title}
+                        </div>
+                        <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/10 text-[10px]">
+                          <span className="text-white/60">{nextT.duration_minutes}m duration</span>
+                          <button
+                            type="button"
+                            onClick={() => handleLaunchFocus(nextT)}
+                            className="text-emerald-300 hover:text-white font-bold flex items-center gap-0.5"
+                          >
+                            <Sparkles size={11} />
+                            <span>Focus</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-[12px] text-white/70 italic">
+                  No further scheduled commitments for today. All daily tasks completed!
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1476,48 +1677,104 @@ export default function MyDayPage() {
               </div>
             </div>
 
-            {/* CARD 2: TODAY'S FOCUS */}
+            {/* CARD 2: TOP 3 DAILY PRIORITIES */}
             <div className="bg-white rounded-3xl p-5 border border-[#E2EAE5] shadow-xs space-y-3">
-              <div>
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-[#14211A]">
-                  <Target size={17} className="text-[#D97706]" />
-                  <h3 className="text-[14px] font-extrabold">Today's Focus</h3>
+                  <Star size={17} className="text-amber-500 fill-amber-500" />
+                  <h3 className="text-[14px] font-extrabold">Top 3 Daily Priorities</h3>
                 </div>
-                <p className="text-[11.5px] text-[#5A6E63] mt-0.5">
-                  Stay consistent and complete your top priorities.
-                </p>
+                <span className="text-[11px] font-bold text-[#6C8176]">
+                  {tasks.filter((t) => t.is_daily_priority === 1).length} / 3 Selected
+                </span>
               </div>
+              <p className="text-[11.5px] text-[#5A6E63]">
+                Elevate up to 3 non-negotiable milestones for today.
+              </p>
 
-              {/* Priority Focus Task (Morning Prayer) */}
-              <div className="p-3 rounded-2xl bg-[#FFFBEB] border border-amber-200/90 flex items-center space-x-3.5">
-                <div className="w-13 h-13 rounded-xl overflow-hidden relative flex-shrink-0 border border-amber-300">
-                  <Image
-                    src="/journey/prayer_spiritual.jpg"
-                    alt="Morning prayer sanctuary"
-                    fill
-                    className="object-cover"
-                  />
+              {priorityWarning && (
+                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold rounded-xl animate-in fade-in">
+                  {priorityWarning}
                 </div>
+              )}
 
-                <div
-                  onClick={() => {
-                    const morningTask = tasks.find((t) => t.title.toLowerCase().includes("prayer"));
-                    if (morningTask) handleToggleTask(morningTask);
-                  }}
-                  className="w-5 h-5 rounded-md border-2 border-amber-400 bg-white cursor-pointer flex items-center justify-center flex-shrink-0 hover:bg-amber-50 transition-colors"
-                >
-                  {completedTasksCount > 0 && <Check size={12} className="text-[#165B33]" strokeWidth={3} />}
-                </div>
+              {tasks.filter((t) => t.is_daily_priority === 1).length > 0 ? (
+                <div className="space-y-2 pt-1">
+                  {tasks
+                    .filter((t) => t.is_daily_priority === 1)
+                    .map((pTask, idx) => {
+                      const isDone = pTask.status === "completed";
+                      return (
+                        <div
+                          key={pTask.id}
+                          className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
+                            isDone
+                              ? "bg-[#F7FAF8] border-[#D5E6DC] opacity-75"
+                              : "bg-[#FFFBEB] border-amber-200"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleTask(pTask)}
+                              className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 cursor-pointer ${
+                                isDone
+                                  ? "bg-[#165B33] border-[#165B33] text-white"
+                                  : "border-amber-400 bg-white hover:bg-amber-50"
+                              }`}
+                            >
+                              {isDone && <Check size={12} strokeWidth={3} />}
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-extrabold font-mono text-amber-800">
+                                  #{idx + 1}
+                                </span>
+                                <h4
+                                  className={`text-[12.5px] font-bold truncate ${
+                                    isDone ? "line-through text-[#6C8176]" : "text-[#14211A]"
+                                  }`}
+                                >
+                                  {pTask.title}
+                                </h4>
+                              </div>
+                              <span className="text-[10.5px] text-[#6C8176] font-mono block mt-0.5">
+                                {pTask.start_time} – {pTask.end_time} • {pTask.category}
+                              </span>
+                            </div>
+                          </div>
 
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-[13px] font-bold text-[#14211A] leading-tight">
-                    Morning Prayer (30 min)
-                  </h4>
-                  <span className="text-[11px] text-[#B45309] font-mono font-medium block mt-0.5">
-                    04:00 – 04:30
-                  </span>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleLaunchFocus(pTask)}
+                              className="p-1.5 text-[#165B33] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                              title="Launch Focus Session"
+                            >
+                              <Sparkles size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleDailyPriority(pTask)}
+                              className="p-1.5 text-amber-500 hover:text-amber-700 rounded-lg cursor-pointer"
+                              title="Remove from priorities"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-[#F9FBFA] border border-dashed border-[#CBD7CE] text-center">
+                  <Star size={20} className="text-[#CBD7CE] mx-auto mb-1.5" />
+                  <p className="text-[12px] font-bold text-[#486053]">No Daily Priorities Set</p>
+                  <p className="text-[11px] text-[#6C8176] mt-0.5">
+                    Click the star icon next to any task on your timeline to mark it as one of your top 3 daily priorities.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* CARD 3: QUICK SUMMARY */}
@@ -1547,22 +1804,22 @@ export default function MyDayPage() {
                   <span className="text-[10.5px] text-[#6C8176] font-medium">Done</span>
                 </div>
 
-                {/* 2. Total */}
+                {/* 2. Remaining */}
                 <div className="p-2.5 rounded-2xl bg-[#F0F7FF] border border-[#BAE6FD] flex flex-col items-center">
-                  <ListTodo size={16} className="text-[#0284C7]" />
+                  <Clock size={16} className="text-[#0284C7]" />
                   <span className="text-[15px] font-extrabold text-[#14211A] font-mono mt-1">
-                    {totalTasksCount}
+                    {remainingTasksCount}
                   </span>
-                  <span className="text-[10.5px] text-[#6C8176] font-medium">Total</span>
+                  <span className="text-[10.5px] text-[#6C8176] font-medium">Rem</span>
                 </div>
 
-                {/* 3. Time */}
-                <div className="p-2.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex flex-col items-center">
+                {/* 3. Focus Minutes */}
+                <div className="p-2.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex flex-col items-center" title="Recorded focus session duration today">
                   <Hourglass size={16} className="text-[#D97706]" />
                   <span className="text-[14.5px] font-extrabold text-[#14211A] font-mono mt-1">
-                    ~13h
+                    {todayFocusMinutes}m
                   </span>
-                  <span className="text-[10.5px] text-[#6C8176] font-medium">Time</span>
+                  <span className="text-[10.5px] text-[#6C8176] font-medium">Focus</span>
                 </div>
 
                 {/* 4. Progress */}
@@ -1571,7 +1828,7 @@ export default function MyDayPage() {
                   <span className="text-[15px] font-extrabold text-[#14211A] font-mono mt-1">
                     {progressPercent}%
                   </span>
-                  <span className="text-[10.5px] text-[#6C8176] font-medium">Progress</span>
+                  <span className="text-[10.5px] text-[#6C8176] font-medium">Done</span>
                 </div>
               </div>
             </div>
@@ -1859,6 +2116,166 @@ export default function MyDayPage() {
                   className="px-4 py-2 bg-[#165B33] text-white rounded-lg text-[12px] font-bold shadow-xs hover:bg-[#124B2C]"
                 >
                   {isAddingTask ? "Adding..." : "Add to Schedule"}
+                </button>
+              </div>
+            </form>
+          </Modal>
+        )}
+
+        {/* Modal: Edit Task */}
+        {editTaskModal && (
+          <Modal
+            isOpen={!!editTaskModal}
+            onClose={() => setEditTaskModal(null)}
+            title={`Edit Task: ${editTaskModal.title}`}
+            maxWidth="max-w-md"
+          >
+            <form onSubmit={handleSaveEditTask} className="p-4 space-y-4">
+              <div>
+                <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
+                  Task Title
+                </label>
+                <input
+                  type="text"
+                  value={editTaskModal.title}
+                  onChange={(e) => setEditTaskModal({ ...editTaskModal, title: e.target.value })}
+                  className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
+                    Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editTaskModal.start_time}
+                    onChange={(e) => setEditTaskModal({ ...editTaskModal, start_time: e.target.value })}
+                    className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
+                    End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={editTaskModal.end_time}
+                    onChange={(e) => setEditTaskModal({ ...editTaskModal, end_time: e.target.value })}
+                    className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editTaskModal.category}
+                    onChange={(e) => setEditTaskModal({ ...editTaskModal, category: e.target.value as any })}
+                    className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                  >
+                    <option value="development">Development</option>
+                    <option value="health">Health & Fitness</option>
+                    <option value="spiritual">Spiritual</option>
+                    <option value="learning">Learning</option>
+                    <option value="freelancing">Freelancing</option>
+                    <option value="business">Business (Suku)</option>
+                    <option value="forex">Forex</option>
+                    <option value="financial">Financial</option>
+                    <option value="family">Family</option>
+                    <option value="planning">Planning / Rest</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={editTaskModal.priority}
+                    onChange={(e) => setEditTaskModal({ ...editTaskModal, priority: e.target.value as any })}
+                    className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
+                  Instructions & Action Steps
+                </label>
+                <textarea
+                  rows={2}
+                  value={editTaskModal.instructions || ""}
+                  onChange={(e) => setEditTaskModal({ ...editTaskModal, instructions: e.target.value })}
+                  className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#E8E6DF]">
+                <button
+                  type="button"
+                  onClick={() => setEditTaskModal(null)}
+                  className="px-4 py-2 text-[12px] font-semibold text-[#4B5563] hover:text-[#181E1B]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#165B33] text-white rounded-lg text-[12px] font-bold shadow-xs hover:bg-[#124B2C]"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </Modal>
+        )}
+
+        {/* Modal: Task Notes */}
+        {taskNotesModal && (
+          <Modal
+            isOpen={!!taskNotesModal}
+            onClose={() => setTaskNotesModal(null)}
+            title={`Execution Notes: ${taskNotesModal.title}`}
+            maxWidth="max-w-md"
+          >
+            <form onSubmit={handleSaveTaskNotes} className="p-4 space-y-4">
+              <p className="text-[12px] text-[#6C8176]">
+                Add specific checklists, API endpoints, or execution guidelines for this scheduled block.
+              </p>
+              <div>
+                <textarea
+                  rows={4}
+                  value={taskNotesContent}
+                  onChange={(e) => setTaskNotesContent(e.target.value)}
+                  placeholder="e.g. Test auth bearer token header with Postman; verify 200 OK status..."
+                  className="w-full px-3 py-2 text-[13px] bg-white border border-[#E8E6DF] rounded-lg focus:outline-none focus:border-[#165B33]"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-[#E8E6DF]">
+                <button
+                  type="button"
+                  onClick={() => setTaskNotesModal(null)}
+                  className="px-4 py-2 text-[12px] font-semibold text-[#4B5563] hover:text-[#181E1B]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#165B33] text-white rounded-lg text-[12px] font-bold shadow-xs hover:bg-[#124B2C]"
+                >
+                  Save Notes
                 </button>
               </div>
             </form>

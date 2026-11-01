@@ -17,6 +17,9 @@ import {
   EnglishVocab,
   DailyReflection,
   NotificationItem,
+  FocusSession,
+  QuickCaptureItem,
+  WeeklyReview,
 } from "./types";
 
 export async function ensureReady() {
@@ -319,6 +322,30 @@ export async function updateDailyTask(
     sql: `UPDATE daily_tasks SET ${fields.join(", ")} WHERE id = ?`,
     args,
   });
+
+  // If status was updated, recalculate linked goal progress
+  if (data.status) {
+    try {
+      const taskRes = await db.execute({
+        sql: "SELECT goal_id FROM daily_tasks WHERE id = ?",
+        args: [taskId],
+      });
+      const goalId = taskRes.rows[0]?.goal_id as string;
+      if (goalId) {
+        const statsRes = await db.execute({
+          sql: "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done FROM daily_tasks WHERE goal_id = ?",
+          args: [goalId],
+        });
+        const total = Number(statsRes.rows[0]?.total || 0);
+        const done = Number(statsRes.rows[0]?.done || 0);
+        const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+        await db.execute({
+          sql: "UPDATE goals SET progress = ?, status = CASE WHEN ? = 100 THEN 'completed' ELSE 'in_progress' END WHERE id = ?",
+          args: [progress, progress, goalId],
+        });
+      }
+    } catch (_) {}
+  }
 }
 
 export async function createDailyTask(task: Omit<DailyTask, "id" | "created_at">): Promise<DailyTask> {
@@ -1528,40 +1555,641 @@ export async function suggestIntelligentSlot(
 }
 
 // -------------------------------------------------------------
-// WEEKLY REVIEWS REPOSITORY
+// SINGLE SOURCE OF TRUTH: EMERGENCY FUND GOAL
 // -------------------------------------------------------------
-export async function getWeeklyReviews(userId = "user_kidus_01"): Promise<any[]> {
+export async function getEmergencyFundGoal(userId = "user_kidus_01") {
+  await ensureReady();
+  const res = await db.execute({
+    sql: `SELECT * FROM goals WHERE user_id = ? AND (id = 'goal_emergency_fund' OR title LIKE '%Emergency%') LIMIT 1`,
+    args: [userId],
+  });
+
+  const finSummary = await getFinancialSummary(userId);
+  const currentSavings = finSummary.emergencyFund;
+
+  if (res.rows.length === 0) {
+    const goalId = "goal_emergency_fund";
+    const target = 90000;
+    const progress = target > 0 ? Math.min(100, Math.round((currentSavings / target) * 100)) : 0;
+    await db.execute({
+      sql: `INSERT OR REPLACE INTO goals (
+        id, user_id, title, description, category, reason, tier,
+        start_date, deadline, priority, progress, target_value, current_value, unit, currency, status, completion_criteria
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        goalId,
+        userId,
+        "Establish Emergency Reserve (90,000 ETB)",
+        "Accumulate 3 months of essential reserves (30,000 ETB/mo) for financial security.",
+        "financial",
+        "Protect family stability and ensure peace of mind before speculative investments.",
+        "90_day",
+        "2026-11-02",
+        "2026-12-31",
+        "high",
+        progress,
+        target,
+        currentSavings,
+        "ETB",
+        "ETB",
+        progress === 100 ? "completed" : "in_progress",
+        "Save 90,000 ETB in verified emergency reserves",
+      ],
+    });
+    return {
+      id: goalId,
+      title: "Establish Emergency Reserve (90,000 ETB)",
+      target_value: target,
+      current_value: currentSavings,
+      progress,
+      unit: "ETB",
+      currency: "ETB",
+      deadline: "2026-12-31",
+    };
+  }
+
+  const row = res.rows[0];
+  const target = 90000;
+  const progress = target > 0 ? Math.min(100, Math.round((currentSavings / target) * 100)) : 0;
+
+  // Enforce single source of truth target (90,000 ETB) and deadline across all modules
+  if (
+    Number(row.target_value) !== target ||
+    Number(row.current_value) !== currentSavings ||
+    Number(row.progress) !== progress ||
+    row.deadline !== "2026-12-31" ||
+    row.title !== "Establish Emergency Reserve (90,000 ETB)"
+  ) {
+    await db.execute({
+      sql: `UPDATE goals SET
+            title = 'Establish Emergency Reserve (90,000 ETB)',
+            target_value = ?,
+            current_value = ?,
+            progress = ?,
+            unit = 'ETB',
+            currency = 'ETB',
+            deadline = '2026-12-31'
+            WHERE id = ?`,
+      args: [target, currentSavings, progress, row.id as string],
+    });
+  }
+
+  return {
+    id: row.id as string,
+    title: "Establish Emergency Reserve (90,000 ETB)",
+    target_value: target,
+    current_value: currentSavings,
+    progress,
+    unit: "ETB",
+    currency: "ETB",
+    deadline: "2026-12-31",
+  };
+}
+
+// -------------------------------------------------------------
+// FOCUS SESSIONS REPOSITORY
+// -------------------------------------------------------------
+export async function createFocusSession(session: Omit<FocusSession, "id" | "created_at">): Promise<FocusSession> {
+  await ensureReady();
+  const id = `focus_${Date.now()}`;
+  await db.execute({
+    sql: `INSERT INTO focus_sessions (
+      id, user_id, task_id, goal_id, title, target_duration_minutes,
+      actual_duration_seconds, interrupted, interruption_reason, status,
+      started_at, completed_at, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      id,
+      session.user_id,
+      session.task_id || null,
+      session.goal_id || null,
+      session.title,
+      session.target_duration_minutes,
+      session.actual_duration_seconds || 0,
+      session.interrupted ? 1 : 0,
+      session.interruption_reason || null,
+      session.status || "completed",
+      session.started_at,
+      session.completed_at || null,
+      session.notes || null,
+    ],
+  });
+
+  // If session is tied to a task, add actual duration
+  if (session.task_id && session.actual_duration_seconds > 0) {
+    const mins = Math.round(session.actual_duration_seconds / 60);
+    try {
+      await db.execute({
+        sql: `UPDATE daily_tasks
+              SET actual_duration_minutes = COALESCE(actual_duration_minutes, 0) + ?
+              WHERE id = ?`,
+        args: [mins, session.task_id],
+      });
+    } catch (_) {}
+  }
+
+  return {
+    ...session,
+    id,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export async function getFocusSessions(userId = "user_kidus_01", limit = 30): Promise<FocusSession[]> {
+  await ensureReady();
+  const res = await db.execute({
+    sql: "SELECT * FROM focus_sessions WHERE user_id = ? ORDER BY started_at DESC LIMIT ?",
+    args: [userId, limit],
+  });
+  return res.rows as unknown as FocusSession[];
+}
+
+export async function getTodayFocusMinutes(userId = "user_kidus_01", dateStr?: string): Promise<number> {
+  await ensureReady();
+  const date = dateStr || new Date().toISOString().split("T")[0];
+  const res = await db.execute({
+    sql: `SELECT COALESCE(SUM(actual_duration_seconds), 0) as total_sec
+          FROM focus_sessions
+          WHERE user_id = ? AND started_at LIKE ?`,
+    args: [userId, `${date}%`],
+  });
+  const sec = Number(res.rows[0]?.total_sec || 0);
+  return Math.round(sec / 60);
+}
+
+// -------------------------------------------------------------
+// UNIVERSAL QUICK CAPTURE REPOSITORY
+// -------------------------------------------------------------
+export async function createQuickCaptureItem(item: Omit<QuickCaptureItem, "id" | "created_at">): Promise<QuickCaptureItem> {
+  await ensureReady();
+  const id = `qc_${Date.now()}`;
+  await db.execute({
+    sql: `INSERT INTO quick_capture_items (
+      id, user_id, type, content, category, assigned_to, is_processed
+    ) VALUES (?, ?, ?, ?, ?, ?, 0)`,
+    args: [
+      id,
+      item.user_id,
+      item.type,
+      item.content,
+      item.category || "general",
+      item.assigned_to || null,
+    ],
+  });
+
+  return {
+    ...item,
+    id,
+    is_processed: 0,
+    created_at: new Date().toISOString(),
+  };
+}
+
+export async function getQuickCaptureItems(userId = "user_kidus_01", includeProcessed = false): Promise<QuickCaptureItem[]> {
+  await ensureReady();
+  const sql = includeProcessed
+    ? "SELECT * FROM quick_capture_items WHERE user_id = ? ORDER BY created_at DESC"
+    : "SELECT * FROM quick_capture_items WHERE user_id = ? AND is_processed = 0 ORDER BY created_at DESC";
+  const res = await db.execute({ sql, args: [userId] });
+  return res.rows as unknown as QuickCaptureItem[];
+}
+
+export async function processQuickCaptureItem(id: string, action: "process" | "delete", targetId?: string): Promise<void> {
+  await ensureReady();
+  if (action === "delete") {
+    await db.execute({ sql: "DELETE FROM quick_capture_items WHERE id = ?", args: [id] });
+  } else {
+    await db.execute({
+      sql: `UPDATE quick_capture_items
+            SET is_processed = 1, assigned_to = ?, processed_at = datetime('now')
+            WHERE id = ?`,
+      args: [targetId || null, id],
+    });
+  }
+}
+
+// -------------------------------------------------------------
+// LIFE INTELLIGENCE & RULE-BASED RECOMMENDATION ENGINE
+// -------------------------------------------------------------
+export async function getLifeIntelligenceSummary(userId = "user_kidus_01", timezone = "Africa/Addis_Ababa") {
+  await ensureReady();
+  const profile = await getUserProfile(userId);
+  const categoriesProgress = await getCategoryProgressOverview(userId);
+  const finSummary = await getFinancialSummary(userId);
+  const emergencyGoal = await getEmergencyFundGoal(userId);
+
+  // 1. Determine Strongest & Most Neglected Categories
+  const categoryEntries = Object.entries(categoriesProgress);
+  let strongestCat = { name: "Spiritual", score: 0 };
+  let neglectedCat = { name: "Health", score: 100 };
+
+  for (const [name, score] of categoryEntries) {
+    if (score > strongestCat.score) strongestCat = { name, score };
+    if (score < neglectedCat.score) neglectedCat = { name, score };
+  }
+
+  // 2. Sleep Schedule Consistency Check
+  const wake = profile?.wake_time || "04:00";
+  const bed = profile?.bed_time || "22:00";
+  const [bH, bM] = bed.split(":").map(Number);
+  const [wH, wM] = wake.split(":").map(Number);
+  let bMins = bH * 60 + bM;
+  let wMins = wH * 60 + wM;
+  if (wMins < bMins) wMins += 24 * 60;
+  const calculatedSleep = Number(((wMins - bMins) / 60).toFixed(1));
+  const targetSleep = Number(profile?.sleep_target_hours || 7.5);
+  const sleepDeficit = Number((targetSleep - calculatedSleep).toFixed(1));
+
+  // 3. Overloaded Days Audit (> 10h / 600m focus scheduled)
+  const taskLoadRes = await db.execute({
+    sql: `SELECT date, SUM(duration_minutes) as total_duration, COUNT(*) as task_count
+          FROM daily_tasks
+          WHERE user_id = ? AND date >= '2026-11-02'
+          GROUP BY date`,
+    args: [userId],
+  });
+
+  const overloadedDays = taskLoadRes.rows
+    .filter((r) => Number(r.total_duration || 0) > 600 || Number(r.task_count || 0) > 12)
+    .map((r) => ({
+      date: r.date as string,
+      total_hours: Number((Number(r.total_duration) / 60).toFixed(1)),
+      task_count: Number(r.task_count),
+    }));
+
+  // 4. Upcoming Deadlines Bottlenecks
+  const deadlinesRes = await db.execute({
+    sql: `SELECT id, title, category, deadline, progress
+          FROM goals
+          WHERE user_id = ? AND status != 'completed' AND deadline IS NOT NULL
+          ORDER BY deadline ASC LIMIT 4`,
+    args: [userId],
+  });
+
+  // 5. Intelligent Transparent Recommendations
+  const recommendations: Array<{
+    id: string;
+    type: "warning" | "schedule" | "finance" | "habit" | "opportunity";
+    title: string;
+    description: string;
+    rationale: string;
+    actionLabel?: string;
+    actionHref?: string;
+  }> = [];
+
+  // Sleep check recommendation
+  if (sleepDeficit > 0) {
+    recommendations.push({
+      id: "rec_sleep",
+      type: "warning",
+      title: `Sleep Duration Below Target (${calculatedSleep}h vs ${targetSleep}h target)`,
+      description: `Your bedtime (${bed}) and wake-up (${wake}) yield exactly ${calculatedSleep} hours. Chronic sleep deficits reduce cognitive endurance and focus capacity.`,
+      rationale: `Configured sleep target is ${targetSleep} hours. A deficit of ${sleepDeficit}h per night accumulates to ${Number((sleepDeficit * 7).toFixed(1))}h of weekly fatigue.`,
+      actionLabel: "Adjust Sleep Schedule in Settings",
+      actionHref: "/settings#schedule",
+    });
+  }
+
+  // Emergency Fund recommendation
+  if (finSummary.emergencyFund < emergencyGoal.target_value) {
+    const remainingToSave = emergencyGoal.target_value - finSummary.emergencyFund;
+    recommendations.push({
+      id: "rec_emergency",
+      type: "finance",
+      title: `Prioritize Emergency Reserve (${finSummary.emergencyFund.toLocaleString()} / ${emergencyGoal.target_value.toLocaleString()} ETB)`,
+      description: `Reserve goal is ${emergencyGoal.progress}% funded. Establishing 3 months of emergency reserves prevents capital liquidation during unexpected events.`,
+      rationale: `Single source of truth goal requires ${emergencyGoal.target_value.toLocaleString()} ETB by ${emergencyGoal.deadline}. Remaining to fund: ${remainingToSave.toLocaleString()} ETB.`,
+      actionLabel: "Record Savings Transfer",
+      actionHref: "/finances",
+    });
+  }
+
+  // Neglected domain recommendation
+  if (neglectedCat.score < 20) {
+    recommendations.push({
+      id: "rec_neglected",
+      type: "habit",
+      title: `Protect Time for ${neglectedCat.name.toUpperCase()} (Currently at ${neglectedCat.score}%)`,
+      description: `Your execution in ${neglectedCat.name} is the lowest across all 8 life pillars. Schedule dedicated focus sessions this week to restore balance.`,
+      rationale: `Holistic architecture requires steady progress across all domains. ${neglectedCat.name} has the lowest completion record.`,
+      actionLabel: `Open ${neglectedCat.name} Module`,
+      actionHref: `/${neglectedCat.name.toLowerCase()}`,
+    });
+  }
+
+  // Suku Marketplace recommendation
+  recommendations.push({
+    id: "rec_suku",
+    type: "opportunity",
+    title: "Protect Thursday & Saturday Deep Work for Suku MVP",
+    description: "Thursday evening (60m) and Saturday morning (3.5h) are designated for merchant catalog schemas and Chapa/Telebirr payment webhooks.",
+    rationale: "Target MVP pilot launch is Dec 31, 2026. Consistent weekend deep work prevents milestone bottlenecks.",
+    actionLabel: "Inspect Suku Roadmap",
+    actionHref: "/suku",
+  });
+
+  return {
+    lifeProgressScore: Math.round(
+      categoryEntries.reduce((acc, [, val]) => acc + val, 0) / Math.max(1, categoryEntries.length)
+    ),
+    strongestCategory: strongestCat,
+    mostNeglectedCategory: neglectedCat,
+    categoriesProgress,
+    sleepAudit: {
+      wakeTime: wake,
+      bedTime: bed,
+      calculatedHours: calculatedSleep,
+      targetHours: targetSleep,
+      deficitHours: sleepDeficit,
+      isDeficit: sleepDeficit > 0,
+      statusLabel: sleepDeficit > 0 ? "Insufficient Sleep" : "Optimal Sleep Duration",
+    },
+    emergencyFund: emergencyGoal,
+    overloadedDays,
+    criticalDeadlines: deadlinesRes.rows,
+    recommendations,
+  };
+}
+
+// -------------------------------------------------------------
+// SMART WEEKLY PLANNER & REVIEW SYSTEM
+// -------------------------------------------------------------
+export async function getWeeklyReviews(userId = "user_kidus_01"): Promise<WeeklyReview[]> {
   await ensureReady();
   const res = await db.execute({
     sql: "SELECT * FROM weekly_reviews WHERE user_id = ? ORDER BY week_start_date DESC",
     args: [userId],
   });
-  return res.rows;
+  return res.rows.map((row: any) => ({
+    id: row.id,
+    user_id: row.user_id,
+    week_start_date: row.week_start_date,
+    week_end_date: row.week_end_date,
+    reflection: row.reflection || "",
+    learnings: row.learnings || "",
+    improvements: row.improvements || "",
+    next_week_priorities: row.next_week_priorities || "",
+    overall_score: Number(row.overall_score || 0),
+    tasks_completed: Number(row.tasks_completed || 0),
+    tasks_missed: Number(row.tasks_missed || 0),
+    goals_progressed: Number(row.goals_progressed || 0),
+    actual_spending: Number(row.actual_spending || 0),
+    savings_progress: Number(row.savings_progress || 0),
+    suggestions_json: row.suggestions_json ? JSON.parse(row.suggestions_json) : [],
+    status: row.status || "reviewed",
+    created_at: row.created_at,
+  }));
 }
 
-export async function saveWeeklyReview(userId = "user_kidus_01", review: any): Promise<void> {
+export async function saveWeeklyReview(userId = "user_kidus_01", data: Partial<WeeklyReview>): Promise<void> {
   await ensureReady();
-  const id = review.id || `wr_${Date.now()}`;
+  const id = data.id || `wr_${data.week_start_date || new Date().toISOString().split("T")[0]}`;
+  const weekStart = data.week_start_date || "2026-11-02";
+  const weekEnd = data.week_end_date || "2026-11-08";
+
   await db.execute({
-    sql: `INSERT OR REPLACE INTO weekly_reviews (
-      id, user_id, week_start_date, week_end_date, completed_tasks_count,
-      missed_tasks_count, total_focus_minutes, wins_reflection,
-      challenges_reflection, adjustments_plan, proposed_schedule
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO weekly_reviews (
+      id, user_id, week_start_date, week_end_date, reflection, learnings,
+      improvements, next_week_priorities, overall_score, tasks_completed,
+      tasks_missed, goals_progressed, actual_spending, savings_progress,
+      suggestions_json, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      reflection = excluded.reflection,
+      learnings = excluded.learnings,
+      improvements = excluded.improvements,
+      next_week_priorities = excluded.next_week_priorities,
+      overall_score = excluded.overall_score,
+      tasks_completed = excluded.tasks_completed,
+      tasks_missed = excluded.tasks_missed,
+      goals_progressed = excluded.goals_progressed,
+      actual_spending = excluded.actual_spending,
+      savings_progress = excluded.savings_progress,
+      suggestions_json = excluded.suggestions_json,
+      status = excluded.status`,
     args: [
       id,
       userId,
-      review.week_start_date,
-      review.week_end_date,
-      review.completed_tasks_count || 0,
-      review.missed_tasks_count || 0,
-      review.total_focus_minutes || 0,
-      review.wins_reflection || "",
-      review.challenges_reflection || "",
-      review.adjustments_plan || "",
-      review.proposed_schedule || null,
+      weekStart,
+      weekEnd,
+      data.reflection || "",
+      data.learnings || "",
+      data.improvements || "",
+      data.next_week_priorities || "",
+      Number(data.overall_score || 0),
+      Number(data.tasks_completed || 0),
+      Number(data.tasks_missed || 0),
+      Number(data.goals_progressed || 0),
+      Number(data.actual_spending || 0),
+      Number(data.savings_progress || 0),
+      data.suggestions_json ? JSON.stringify(data.suggestions_json) : "[]",
+      data.status || "reviewed",
     ],
   });
+}
+
+export async function getWeeklyPlannerData(userId = "user_kidus_01", weekStartStr = "2026-11-02") {
+  await ensureReady();
+
+  // Calculate 7-day span: Monday to Sunday
+  const start = new Date(weekStartStr);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const weekEndStr = end.toISOString().split("T")[0];
+
+  // 1. Tasks in week
+  const tasksRes = await db.execute({
+    sql: `SELECT id, title, date, start_time, end_time, duration_minutes,
+                 actual_duration_minutes, status, category, priority
+          FROM daily_tasks
+          WHERE user_id = ? AND date BETWEEN ? AND ?
+          ORDER BY date ASC, start_time ASC`,
+    args: [userId, weekStartStr, weekEndStr],
+  });
+  const tasks = tasksRes.rows as any[];
+  const tasksCompleted = tasks.filter((t) => t.status === "completed").length;
+  const tasksMissed = tasks.filter((t) => t.status === "missed").length;
+  const tasksUpcoming = tasks.filter((t) => t.status === "upcoming").length;
+
+  // 2. Focus Time (focus_sessions + actual_duration_minutes)
+  const focusRes = await db.execute({
+    sql: `SELECT COALESCE(SUM(actual_duration_seconds), 0) as total_sec FROM focus_sessions
+          WHERE user_id = ? AND started_at BETWEEN ? AND ?`,
+    args: [userId, `${weekStartStr}T00:00:00`, `${weekEndStr}T23:59:59`],
+  });
+  const sessionMin = Math.round(Number(focusRes.rows[0]?.total_sec || 0) / 60);
+  const taskFocusMin = tasks
+    .filter((t) => t.status === "completed")
+    .reduce((sum, t) => sum + Number(t.actual_duration_minutes || t.duration_minutes || 0), 0);
+  const totalFocusMinutes = Math.max(sessionMin, taskFocusMin);
+
+  // 3. Learning Hours
+  const learningMinutes = tasks
+    .filter((t) => t.category === "learning" && t.status === "completed")
+    .reduce((sum, t) => sum + Number(t.duration_minutes || 0), 0);
+  const learningHours = Number((learningMinutes / 60).toFixed(1));
+
+  // 4. Exercise Sessions
+  const exerciseRes = await db.execute({
+    sql: `SELECT COUNT(*) as count FROM health_logs
+          WHERE user_id = ? AND workout_completed = 1 AND date BETWEEN ? AND ?`,
+    args: [userId, weekStartStr, weekEndStr],
+  });
+  const healthTaskCompleted = tasks.filter((t) => t.category === "health" && t.status === "completed").length;
+  const exerciseSessions = Math.max(Number(exerciseRes.rows[0]?.count || 0), healthTaskCompleted);
+
+  // 5. Spiritual Consistency
+  const prayersRes = await db.execute({
+    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done
+          FROM prayer_logs
+          WHERE user_id = ? AND date BETWEEN ? AND ?`,
+    args: [userId, weekStartStr, weekEndStr],
+  });
+  const totalPrayers = Number(prayersRes.rows[0]?.total || 0);
+  const donePrayers = Number(prayersRes.rows[0]?.done || 0);
+  const spiritualConsistencyPercent = totalPrayers > 0 ? Math.round((donePrayers / totalPrayers) * 100) : 0;
+
+  // 6. Finances: Spending & Savings
+  const finRes = await db.execute({
+    sql: `SELECT
+            SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as spending,
+            SUM(CASE WHEN type = 'savings' THEN amount ELSE 0 END) as savings
+          FROM financial_transactions
+          WHERE user_id = ? AND date BETWEEN ? AND ?`,
+    args: [userId, weekStartStr, weekEndStr],
+  });
+  const actualSpending = Number(finRes.rows[0]?.spending || 0);
+  const savingsProgress = Number(finRes.rows[0]?.savings || 0);
+
+  // 7. Project Progress (Suku & Freelance)
+  const sukuRes = await db.execute({
+    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done
+          FROM suku_tasks WHERE user_id = ?`,
+    args: [userId],
+  });
+  const projectTotal = Number(sukuRes.rows[0]?.total || 0);
+  const projectDone = Number(sukuRes.rows[0]?.done || 0);
+  const projectProgressPercent = projectTotal > 0 ? Math.round((projectDone / projectTotal) * 100) : 0;
+
+  // 8. Goals Progressed
+  const goalsRes = await db.execute({
+    sql: `SELECT COUNT(*) as count FROM goals WHERE user_id = ? AND progress > 0`,
+    args: [userId],
+  });
+  const goalsProgressed = Number(goalsRes.rows[0]?.count || 0);
+
+  // 9. Generate Actionable Suggestions for the Following Week
+  const suggestions: Array<{
+    id: string;
+    type: "reschedule" | "balance" | "overload" | "protect_goal" | "sleep";
+    title: string;
+    description: string;
+    rationale: string;
+    actionType: "reschedule_task" | "adjust_schedule" | "protect_time";
+    payload?: any;
+    applied?: boolean;
+  }> = [];
+
+  // Suggestion: Reschedule unfinished/missed tasks
+  const unfinishedTasks = tasks.filter((t) => t.status === "missed" || (t.status === "upcoming" && t.priority === "high"));
+  if (unfinishedTasks.length > 0) {
+    const nextMonday = new Date(end);
+    nextMonday.setDate(end.getDate() + 1);
+    const nextMondayStr = nextMonday.toISOString().split("T")[0];
+
+    suggestions.push({
+      id: "sug_reschedule_missed",
+      type: "reschedule",
+      title: `Reschedule ${unfinishedTasks.length} Unfinished Important Task(s)`,
+      description: `Move '${unfinishedTasks[0].title}' to Monday, ${nextMondayStr}.`,
+      rationale: "Unfinished high-priority tasks accumulate cognitive burden and derail milestone deadlines.",
+      actionType: "reschedule_task",
+      payload: {
+        taskId: unfinishedTasks[0].id,
+        targetDate: nextMondayStr,
+      },
+      applied: false,
+    });
+  }
+
+  // Suggestion: Overload check
+  const daysMap: Record<string, number> = {};
+  for (const t of tasks) {
+    daysMap[t.date] = (daysMap[t.date] || 0) + Number(t.duration_minutes || 0);
+  }
+  const heavyDays = Object.entries(daysMap).filter(([, m]) => m > 600);
+  if (heavyDays.length > 0) {
+    suggestions.push({
+      id: "sug_balance_schedule",
+      type: "overload",
+      title: "Reduce Overloaded Daily Schedules",
+      description: `${heavyDays[0][0]} has ${Math.round(heavyDays[0][1] / 60)} hours scheduled. Consider redistributing 90 minutes to lighter days.`,
+      rationale: "Schedules exceeding 10 hours of focused work risk mental fatigue and missed evening routines.",
+      actionType: "adjust_schedule",
+      applied: false,
+    });
+  }
+
+  // Suggestion: Protect time for neglected goal
+  if (exerciseSessions < 3) {
+    suggestions.push({
+      id: "sug_protect_health",
+      type: "protect_goal",
+      title: "Protect 3x Morning Calisthenics Sessions",
+      description: "Schedule Monday, Wednesday, and Friday 06:15 AM workout blocks.",
+      rationale: "Physical vitality and mobility directly reinforce long-duration cognitive focus.",
+      actionType: "protect_time",
+      applied: false,
+    });
+  }
+
+  // Suggestion: Sleep & rest balance
+  suggestions.push({
+    id: "sug_balance_rest",
+    type: "sleep",
+    title: "Protect 21:30 Screen Wind-Down Routine",
+    description: "Shut down monitors and begin tea/reading at 21:30 to guarantee sleep by 22:00.",
+    rationale: "Sleep deficit audit shows 6.0h vs 7.5h target. Winding down 30 minutes earlier is required.",
+    actionType: "protect_time",
+    applied: false,
+  });
+
+  return {
+    weekStartDate: weekStartStr,
+    weekEndDate: weekEndStr,
+    metrics: {
+      tasksCompleted,
+      tasksMissed,
+      tasksUpcoming,
+      totalFocusMinutes,
+      learningHours,
+      exerciseSessions,
+      spiritualConsistencyPercent,
+      actualSpending,
+      savingsProgress,
+      projectProgressPercent,
+      goalsProgressed,
+    },
+    tasks,
+    suggestions,
+  };
+}
+
+export async function applyPlannerSuggestion(
+  userId = "user_kidus_01",
+  suggestion: { id: string; actionType: string; payload?: any }
+): Promise<{ success: boolean; message: string }> {
+  await ensureReady();
+
+  if (suggestion.actionType === "reschedule_task" && suggestion.payload?.taskId && suggestion.payload?.targetDate) {
+    await db.execute({
+      sql: "UPDATE daily_tasks SET date = ?, status = 'upcoming' WHERE id = ? AND user_id = ?",
+      args: [suggestion.payload.targetDate, suggestion.payload.taskId, userId],
+    });
+    return { success: true, message: `Task rescheduled to ${suggestion.payload.targetDate}.` };
+  }
+
+  return { success: true, message: "Suggestion noted and schedule prioritized." };
 }
 
 
