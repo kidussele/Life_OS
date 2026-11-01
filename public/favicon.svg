@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A533E" />
+      <stop offset="100%" stop-color="#144332" />
+    </linearGradient>
+  </defs>
+  <!-- Forest Green Rounded Squircle Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  
+  <!-- Clean Crisp White Capital L -->
+  <path
+    d="M 154 118
+       L 234 118
+       L 234 314
+       L 358 314
+       L 358 394
+       L 154 394
+       Z"
+    fill="#FFFFFF"
+  />
+</svg>

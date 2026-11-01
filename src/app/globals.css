@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-page: #F3F7F4;
+    --bg-card: #FFFFFF;
+    --bg-subtle: #F7FAF8;
+    --border-subtle: #E2E9E4;
+    --border-strong: #CBD7CE;
+    
+    /* Deep Forest Green Palette */
+    --forest-900: #0C2819;
+    --forest-800: #123D26;
+    --forest-700: #165B33;
+    --forest-600: #1E7442;
+    --forest-500: #269153;
+    --forest-200: #BCE2CB;
+    --forest-100: #EBF5EE;
+    --forest-50: #F3F9F5;
+
+    /* Text Colors */
+    --text-primary: #14211A;
+    --text-secondary: #485A50;
+    --text-muted: #6C8176;
+
+    /* Status Badges */
+    --badge-upcoming-bg: #EBF5EE;
+    --badge-upcoming-text: #165B33;
+    --badge-high-bg: #FEE8E8;
+    --badge-high-text: #D93838;
+    --badge-medium-bg: #FEF3D6;
+    --badge-medium-text: #B47805;
+    --badge-low-bg: #E7F6ED;
+    --badge-low-text: #198754;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD7CE;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9BB3A3;
+}
+
+/* Authentic UI Card Style */
+.os-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
+}
+
+.os-card-sm {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+}
+
+.os-badge-upcoming {
+  background-color: #EBF5EE;
+  color: #165B33;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.os-badge-completed {
+  background-color: #165B33;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
