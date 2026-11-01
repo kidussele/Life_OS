@@ -28,19 +28,19 @@ export default function ReportsPage() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  // Dynamic metrics state with default initial values matching user reference
+  // Dynamic metrics state with clean initial values for fresh start
   const [metrics, setMetrics] = useState({
-    prayerDevotion: 96,
-    prayerChange: "+2%",
-    scheduleExecution: 85,
-    scheduleChange: "+5%",
-    forexPerformance: "+4.3R",
-    forexChange: "+18%",
-    emergencySavings: "3,000 ETB",
-    emergencyChange: "+1,000 ETB",
-    weeklyConsistency: 92,
-    weeklyChange: "+4%",
-    totalCapital: "30,000",
+    prayerDevotion: 0,
+    prayerChange: "Day 1 Baseline",
+    scheduleExecution: 0,
+    scheduleChange: "Day 1 Baseline",
+    forexPerformance: "0.0R",
+    forexChange: "0 trades logged",
+    emergencySavings: "0 ETB",
+    emergencyChange: "Target 90,000 ETB",
+    weeklyConsistency: 0,
+    weeklyChange: "Day 1 Baseline",
+    totalCapital: "0",
   });
   const [reportData, setReportData] = useState<any>(null);
 
@@ -82,8 +82,8 @@ export default function ReportsPage() {
           if (finData.summary) {
             setMetrics((prev) => ({
               ...prev,
-              emergencySavings: `${finData.summary.emergencyFund?.toLocaleString() || 3000} ETB`,
-              totalCapital: `${finData.summary.totalIncome?.toLocaleString() || 30000}`,
+              emergencySavings: `${(finData.summary.emergencyFund || 0).toLocaleString()} ETB`,
+              totalCapital: `${(finData.summary.totalIncome || 0).toLocaleString()}`,
             }));
           }
         }
@@ -93,7 +93,7 @@ export default function ReportsPage() {
           if (fxData.stats) {
             setMetrics((prev) => ({
               ...prev,
-              forexPerformance: `+${fxData.stats.totalR || 4.3}R`,
+              forexPerformance: `${(fxData.stats.totalR || 0) >= 0 ? "+" : ""}${fxData.stats.totalR || 0}R`,
             }));
           }
         }

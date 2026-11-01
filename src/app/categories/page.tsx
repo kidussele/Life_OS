@@ -39,7 +39,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Health & Fitness",
     subtitle: "Physical health, exercise, and wellness routine.",
     href: "/health",
-    progress: 86,
+    progress: 0,
     icon: Activity,
     iconBg: "bg-[#E8F8F0] border-[#C8E6C9]",
     iconColor: "text-[#16A34A]",
@@ -49,7 +49,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Spiritual Life",
     subtitle: "Prayer, devotion, and spiritual growth.",
     href: "/spiritual",
-    progress: 72,
+    progress: 0,
     icon: null,
     isPrayer: true,
     iconBg: "bg-[#FFF8E7] border-[#FEF3C7]",
@@ -60,7 +60,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Career & Learning",
     subtitle: "Skills, education, and career development.",
     href: "/career",
-    progress: 78,
+    progress: 0,
     icon: GraduationCap,
     iconBg: "bg-[#E8F8F0] border-[#C8E6C9]",
     iconColor: "text-[#165B33]",
@@ -70,7 +70,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Freelancing",
     subtitle: "Online work and professional services.",
     href: "/freelancing",
-    progress: 64,
+    progress: 0,
     icon: Laptop,
     iconBg: "bg-[#F0F9FF] border-[#BAE6FD]",
     iconColor: "text-[#0284C7]",
@@ -80,7 +80,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Business (Suku)",
     subtitle: "Your business and marketplace growth.",
     href: "/suku",
-    progress: 69,
+    progress: 0,
     icon: Store,
     iconBg: "bg-[#E8F8F0] border-[#C8E6C9]",
     iconColor: "text-[#165B33]",
@@ -90,7 +90,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Forex Journal",
     subtitle: "Trading insights and performance tracking.",
     href: "/forex",
-    progress: 73,
+    progress: 0,
     icon: TrendingUp,
     iconBg: "bg-[#E8F8F0] border-[#C8E6C9]",
     iconColor: "text-[#165B33]",
@@ -100,7 +100,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Financial Management",
     subtitle: "Money management and financial planning.",
     href: "/finances",
-    progress: 75,
+    progress: 0,
     icon: Coins,
     iconBg: "bg-[#FFF8E7] border-[#FEF3C7]",
     iconColor: "text-[#D97706]",
@@ -110,7 +110,7 @@ const LIFE_DOMAINS: LifeDomain[] = [
     title: "Family & Relations",
     subtitle: "Family, friends, and relationships.",
     href: "/family",
-    progress: 91,
+    progress: 0,
     icon: Users,
     iconBg: "bg-[#E8F8F0] border-[#C8E6C9]",
     iconColor: "text-[#165B33]",
@@ -190,9 +190,10 @@ export default function LifeCategoriesPage() {
             const Icon = domain.icon;
 
             return (
-              <div
+              <Link
                 key={domain.id}
-                className="bg-white rounded-2xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col justify-between hover:border-[#165B33] hover:shadow-md transition-all duration-200 group"
+                href={domain.href}
+                className="bg-white rounded-2xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col justify-between hover:border-[#165B33] hover:shadow-md transition-all duration-200 group cursor-pointer"
               >
                 {/* Top Section: Icon + Title/Subtitle + Circular Progress */}
                 <div>
@@ -210,7 +211,7 @@ export default function LifeCategoriesPage() {
 
                     {/* Middle: Title & Subtitle */}
                     <div className="min-w-0 flex-1 pl-1">
-                      <h3 className="text-[13px] font-bold text-[#0F172A] leading-snug truncate">
+                      <h3 className="text-[13px] font-bold text-[#0F172A] leading-snug truncate group-hover:text-[#165B33] transition-colors">
                         {domain.title}
                       </h3>
                       <p className="text-[11px] text-[#64748B] leading-tight mt-0.5 line-clamp-2">
@@ -255,15 +256,12 @@ export default function LifeCategoriesPage() {
 
                 {/* Bottom: Open Domain -> Pill Button */}
                 <div className="pt-2 flex justify-center">
-                  <Link
-                    href={domain.href}
-                    className="inline-flex items-center space-x-1 text-[11px] font-bold text-[#165B33] bg-[#F0FDF4] group-hover:bg-[#DCFCE7] border border-[#BBF7D0] px-3.5 py-1.5 rounded-full transition-all"
-                  >
+                  <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-[#165B33] bg-[#F0FDF4] group-hover:bg-[#165B33] group-hover:text-white border border-[#BBF7D0] px-3.5 py-1.5 rounded-full transition-all shadow-xs">
                     <span>Open Domain</span>
-                    <ArrowRight size={12} className="ml-0.5" />
-                  </Link>
+                    <ArrowRight size={12} className="ml-0.5 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -320,7 +318,7 @@ export default function LifeCategoriesPage() {
             </p>
 
             <div className="space-y-2">
-              {LIFE_DOMAINS.map((d) => (
+              {domains.map((d) => (
                 <Link
                   key={d.id}
                   href={d.href}

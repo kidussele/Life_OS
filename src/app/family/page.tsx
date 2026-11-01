@@ -394,9 +394,9 @@ export default function FamilyPage() {
                 </div>
                 <div>
                   <p className="text-[12px] text-[#6B7280] font-medium">Family Time</p>
-                  <p className="text-[16px] font-bold text-[#111827]">4.2 hrs/week</p>
+                  <p className="text-[16px] font-bold text-[#111827]">0.0 hrs/week</p>
                   <p className="text-[11px] text-[#16A34A] font-semibold flex items-center gap-0.5 mt-0.5">
-                    <span>↑</span> +12%
+                    <span>•</span> Starting Day 1
                   </p>
                 </div>
               </div>
@@ -411,9 +411,9 @@ export default function FamilyPage() {
                 </div>
                 <div>
                   <p className="text-[12px] text-[#6B7280] font-medium">Quality Conversations</p>
-                  <p className="text-[16px] font-bold text-[#111827]">12 this month</p>
+                  <p className="text-[16px] font-bold text-[#111827]">0 this month</p>
                   <p className="text-[11px] text-[#16A34A] font-semibold flex items-center gap-0.5 mt-0.5">
-                    <span>↑</span> +20%
+                    <span>•</span> Starting Day 1
                   </p>
                 </div>
               </div>
@@ -428,7 +428,10 @@ export default function FamilyPage() {
                 </div>
                 <div>
                   <p className="text-[12px] text-[#6B7280] font-medium">Memories Created</p>
-                  <p className="text-[16px] font-bold text-[#111827]">18 this year</p>
+                  <p className="text-[16px] font-bold text-[#111827]">0 this year</p>
+                  <p className="text-[11px] text-[#16A34A] font-semibold flex items-center gap-0.5 mt-0.5">
+                    <span>•</span> Ready for 2026 plan
+                  </p>
                 </div>
               </div>
             </div>

@@ -124,7 +124,7 @@ export default function FinancialManagementPage() {
   const savingsRate =
     summary.totalIncome > 0
       ? Number((((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100).toFixed(1))
-      : 68.7;
+      : 0.0;
 
   const emergencyFundPercent = Math.min(
     100,
@@ -207,7 +207,7 @@ export default function FinancialManagementPage() {
                 {summary.totalIncome.toLocaleString()}
               </div>
               <span className="text-[11px] font-semibold text-[#16A34A] block truncate">
-                ↑ +12% vs last month
+                {summary.totalIncome > 0 ? "↑ Active Inflow" : "Day 1 Baseline (0 ETB)"}
               </span>
             </div>
           </div>
@@ -224,8 +224,8 @@ export default function FinancialManagementPage() {
               <div className="text-2xl font-extrabold text-[#DC2626] leading-tight mt-0.5">
                 {summary.totalExpenses.toLocaleString()}
               </div>
-              <span className="text-[11px] font-semibold text-[#DC2626] block truncate">
-                ↓ +5% vs last month
+              <span className="text-[11px] font-semibold text-[#64748B] block truncate">
+                {summary.totalExpenses > 0 ? "↓ Expenses recorded" : "No expenses logged"}
               </span>
             </div>
           </div>

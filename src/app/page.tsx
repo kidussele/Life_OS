@@ -790,7 +790,7 @@ export default function DashboardPage() {
                       Today's Schedule
                     </h2>
                     <span className="text-[12px] text-[#6C8176] font-medium">
-                      Sunday, Nov 1, 2026 • 19 Structured Activities
+                      {timeState.displayDateStr} • {totalTasks} Structured Activities
                     </span>
                   </div>
                 </div>
@@ -1108,27 +1108,28 @@ export default function DashboardPage() {
 
                 <div className="grid grid-cols-4 gap-2 text-center">
                   {[
-                    { label: "Health", pct: `${categories.health || 85}%`, icon: Heart, color: "text-[#D93838]" },
-                    { label: "Spiritual", pct: `${categories.spiritual || 72}%`, icon: Anchor, color: "text-[#165B33]" },
-                    { label: "Career", pct: `${categories.career || 75}%`, icon: GraduationCap, color: "text-[#B47805]" },
-                    { label: "Freelancing", pct: `${categories.freelancing || 60}%`, icon: TrendingUp, color: "text-[#0284C7]" },
-                    { label: "Business", pct: `${categories.suku || 65}%`, icon: Store, color: "text-[#4B5563]" },
-                    { label: "Forex", pct: `${categories.forex || 45}%`, icon: CandlestickChart, color: "text-[#165B33]" },
-                    { label: "Finance", pct: `${categories.finance || 26}%`, icon: Wallet, color: "text-[#D93838]" },
-                    { label: "Family", pct: `${categories.family || 80}%`, icon: Users, color: "text-[#D93838]" },
+                    { label: "Health", href: "/health", pct: `${categories.health ?? 0}%`, icon: Heart, color: "text-[#16A34A]" },
+                    { label: "Spiritual", href: "/spiritual", pct: `${categories.spiritual ?? 0}%`, icon: Anchor, color: "text-[#D97706]" },
+                    { label: "Career", href: "/learning", pct: `${categories.career ?? 0}%`, icon: GraduationCap, color: "text-[#165B33]" },
+                    { label: "Freelancing", href: "/freelancing", pct: `${categories.freelancing ?? 0}%`, icon: TrendingUp, color: "text-[#0284C7]" },
+                    { label: "Business", href: "/suku", pct: `${categories.suku ?? 0}%`, icon: Store, color: "text-[#165B33]" },
+                    { label: "Forex", href: "/forex", pct: `${categories.forex ?? 0}%`, icon: CandlestickChart, color: "text-[#165B33]" },
+                    { label: "Finance", href: "/finances", pct: `${categories.finance ?? 0}%`, icon: Wallet, color: "text-[#D97706]" },
+                    { label: "Family", href: "/family", pct: `${categories.family ?? 0}%`, icon: Users, color: "text-[#165B33]" },
                   ].map((cat) => (
-                    <div
+                    <Link
                       key={cat.label}
-                      className="p-2 rounded-xl bg-[#F7FAF8] border border-[#E2E9E4] hover:border-[#CBD7CE] transition-colors"
+                      href={cat.href}
+                      className="p-2 rounded-xl bg-[#F7FAF8] border border-[#E2E9E4] hover:border-[#165B33] hover:bg-[#EBF5EE] transition-all block group cursor-pointer"
                     >
-                      <cat.icon size={15} className={`mx-auto mb-1 ${cat.color}`} />
-                      <span className="text-[10px] text-[#6C8176] block truncate">
+                      <cat.icon size={15} className={`mx-auto mb-1 ${cat.color} group-hover:scale-110 transition-transform`} />
+                      <span className="text-[10px] text-[#6C8176] group-hover:text-[#165B33] block truncate font-medium">
                         {cat.label}
                       </span>
                       <span className="text-[11px] font-bold text-[#14211A] block">
                         {cat.pct}
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -1443,26 +1444,39 @@ export default function DashboardPage() {
                         pBg: "bg-[#E7F6ED] text-[#198754] border border-[#B7E4C7]",
                       },
                     ]
-                ).map((dl: any) => (
-                  <div
-                    key={dl.title}
-                    className="p-3 rounded-xl bg-[#F7FAF8] border border-[#E2E9E4] flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[13px] font-bold text-[#14211A] block truncate">
-                        {dl.title}
-                      </span>
-                      <span className="text-[11.5px] text-[#6C8176]">
-                        {dl.cat} • {dl.date} ({dl.remaining})
-                      </span>
-                    </div>
-                    <span
-                      className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${dl.pBg}`}
+                ).map((dl: any) => {
+                  const href = dl.cat.toLowerCase().includes("free")
+                    ? "/freelancing"
+                    : dl.cat.toLowerCase().includes("suku") || dl.cat.toLowerCase().includes("business")
+                    ? "/suku"
+                    : dl.cat.toLowerCase().includes("fin")
+                    ? "/finances"
+                    : dl.cat.toLowerCase().includes("learn") || dl.cat.toLowerCase().includes("career")
+                    ? "/learning"
+                    : "/goals";
+
+                  return (
+                    <Link
+                      key={dl.title}
+                      href={href}
+                      className="p-3 rounded-xl bg-[#F7FAF8] hover:bg-[#EBF5EE] border border-[#E2E9E4] hover:border-[#B7E4C7] flex items-center justify-between gap-3 transition-colors block group cursor-pointer"
                     >
-                      {dl.priority}
-                    </span>
-                  </div>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[13px] font-bold text-[#14211A] group-hover:text-[#165B33] block truncate transition-colors">
+                          {dl.title}
+                        </span>
+                        <span className="text-[11.5px] text-[#6C8176]">
+                          {dl.cat} • {dl.date} ({dl.remaining})
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${dl.pBg}`}
+                      >
+                        {dl.priority}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -1574,6 +1588,36 @@ export default function DashboardPage() {
                   <p className="text-[12px] text-[#6C8176] mt-1 leading-relaxed">
                     {selectedTask.instructions || selectedTask.desc}
                   </p>
+                  <div className="mt-2.5 pt-2 border-t border-[#E2E9E4] flex items-center justify-between">
+                    <span className="text-[11px] text-[#6C8176]">
+                      Life Pillar: <strong className="text-[#14211A] capitalize">{selectedTask.category}</strong>
+                    </span>
+                    <Link
+                      href={
+                        selectedTask.category === "spiritual"
+                          ? "/spiritual"
+                          : selectedTask.category === "health"
+                          ? "/health"
+                          : selectedTask.category === "learning"
+                          ? "/learning"
+                          : selectedTask.category === "freelancing"
+                          ? "/freelancing"
+                          : selectedTask.category === "business" || selectedTask.category === "development"
+                          ? "/suku"
+                          : selectedTask.category === "forex"
+                          ? "/forex"
+                          : selectedTask.category === "finance" || selectedTask.category === "financial"
+                          ? "/finances"
+                          : selectedTask.category === "family"
+                          ? "/family"
+                          : "/categories"
+                      }
+                      className="text-[11.5px] font-bold text-[#165B33] hover:underline inline-flex items-center gap-1 group"
+                    >
+                      <span>Open {selectedTask.category} Module</span>
+                      <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                    </Link>
+                  </div>
                 </div>
               </div>
 

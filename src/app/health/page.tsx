@@ -191,11 +191,11 @@ export default function HealthFitnessPage() {
                 Program Status
               </span>
               <div className="text-[15px] sm:text-[16px] font-extrabold text-[#0F172A] leading-tight mt-0.5 truncate">
-                Completed (90%)
+                Day 1 Initialized (0%)
               </div>
               <span className="text-[11px] font-semibold text-[#16A34A] flex items-center space-x-1 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-                <span>Keep going!</span>
+                <span>Day 1 of 90-day plan</span>
               </span>
             </div>
           </div>
@@ -214,7 +214,7 @@ export default function HealthFitnessPage() {
                   {sleepQuality}%
                 </div>
                 <span className="text-[11px] font-semibold text-[#16A34A] block truncate">
-                  +5% vs last week
+                  Day 1 Baseline
                 </span>
               </div>
             </div>
@@ -244,11 +244,11 @@ export default function HealthFitnessPage() {
                   Weekly Workouts
                 </span>
                 <div className="text-2xl font-extrabold text-[#0F172A] leading-tight mt-0.5">
-                  5 / 5
+                  0 / 5
                 </div>
                 <span className="text-[11px] font-semibold text-[#16A34A] flex items-center space-x-1 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-                  <span>On track</span>
+                  <span>Starting Day 1</span>
                 </span>
               </div>
             </div>
@@ -282,7 +282,7 @@ export default function HealthFitnessPage() {
                 </div>
                 <span className="text-[11px] font-semibold text-[#16A34A] flex items-center space-x-1 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-                  <span>Excellent</span>
+                  <span>Ready for Day 1</span>
                 </span>
               </div>
             </div>

@@ -106,6 +106,7 @@ export async function executeCleanDataReset(options: {
     "health_logs",
     "family_logs",
     "notifications",
+    "weekly_reviews",
   ];
 
   for (const table of operationalTables) {

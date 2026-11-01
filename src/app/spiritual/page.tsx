@@ -103,27 +103,15 @@ export default function SpiritualLifePage() {
   };
 
   // 90-day progress metrics
-  const morningCount = logs.filter((l) => l.prayer_type === "morning" && l.completed).length + (morningCompleted ? 1 : 0);
-  const nightCount = logs.filter((l) => l.prayer_type === "night" && l.completed).length + (nightCompleted ? 1 : 0);
-  const totalCompleted = morningCount + nightCount;
+  const completedLogKeys = new Set(logs.filter((l) => l.completed).map((l) => `${l.date}_${l.prayer_type}`));
+  if (morningCompleted && today) completedLogKeys.add(`${today}_morning`);
+  if (nightCompleted && today) completedLogKeys.add(`${today}_night`);
+
+  const morningCount = Array.from(completedLogKeys).filter((k) => k.endsWith("_morning")).length;
+  const nightCount = Array.from(completedLogKeys).filter((k) => k.endsWith("_night")).length;
+  const totalCompleted = completedLogKeys.size;
   const targetTotal = 180; // 90 morning + 90 night
   const progressPercent = Math.min(100, Math.round((totalCompleted / targetTotal) * 100));
-
-  // Initial devotion history fallback matching screenshot
-  const initialHistory = [
-    {
-      id: "hist_1",
-      date: "Oct 31, 2026 • 9:20 PM",
-      title: "Night Prayer - Peace and gratitude.",
-      completed: true,
-    },
-    {
-      id: "hist_2",
-      date: "Oct 31, 2026 • 4:15 AM",
-      title: "Morning Prayer - Thankfulness.",
-      completed: true,
-    },
-  ];
 
   return (
     <AppLayout>
@@ -590,27 +578,10 @@ export default function SpiritualLifePage() {
                   </div>
                 ))
               ) : (
-                initialHistory.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 rounded-2xl bg-[#F7FAF8] border border-[#E2E9E4] flex items-center justify-between text-[12px]"
-                  >
-                    <div className="flex items-center space-x-2.5 min-w-0">
-                      <Calendar size={15} className="text-[#165B33] flex-shrink-0" />
-                      <div className="min-w-0">
-                        <span className="font-bold text-[#14211A] block truncate">
-                          {item.date}
-                        </span>
-                        <span className="text-[#6C8176] text-[11px] truncate block">
-                          {item.title}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#EBF5EE] text-[#165B33] border border-[#B7E4C7] flex-shrink-0">
-                      Completed
-                    </span>
-                  </div>
-                ))
+                <div className="py-6 px-4 text-center rounded-2xl bg-[#F7FAF8] border border-[#E2E9E4]">
+                  <p className="text-[12.5px] font-semibold text-[#14211A]">No prayer sessions logged yet</p>
+                  <p className="text-[11px] text-[#6C8176] mt-0.5">Day 1 morning prayer begins at 04:00 AM.</p>
+                </div>
               )}
             </div>
           </div>

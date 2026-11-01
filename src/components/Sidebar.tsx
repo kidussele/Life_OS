@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Sprout,
   Compass,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -30,6 +31,11 @@ interface NavItem {
   href: string;
   icon: any;
   badge?: string;
+}
+
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onClose?: () => void;
 }
 
 const navItems: NavItem[] = [
@@ -52,28 +58,56 @@ const navItems: NavItem[] = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-white border-r border-[#E2E9E4] flex flex-col justify-between h-screen overflow-y-auto z-30 select-none px-4 py-4">
-      <div>
-        {/* Logo Section */}
-        <Link href="/" className="flex items-center space-x-2.5 px-2 py-1 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-[#EBF5EE] text-[#165B33] flex items-center justify-center">
-            <Sprout size={22} className="text-[#165B33]" />
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-xs transition-opacity duration-200"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-[#E2E9E4] flex flex-col justify-between h-screen overflow-y-auto select-none px-4 py-4 transition-transform duration-200 lg:static lg:translate-x-0 lg:w-64 lg:flex-shrink-0 ${
+          mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div>
+          {/* Logo Section with Mobile Close Button */}
+          <div className="flex items-center justify-between mb-5">
+            <Link
+              href="/"
+              onClick={onClose}
+              className="flex items-center space-x-2.5 px-2 py-1"
+            >
+              <div className="w-8 h-8 rounded-lg bg-[#EBF5EE] text-[#165B33] flex items-center justify-center shadow-xs">
+                <Sprout size={22} className="text-[#165B33]" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="font-extrabold text-[17px] tracking-tight text-[#123D26]">
+                    LIFE OS
+                  </span>
+                </div>
+                <span className="block text-[11px] text-[#6C8176] font-medium leading-none -mt-0.5">
+                  Organize Your Life
+                </span>
+              </div>
+            </Link>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="lg:hidden p-1.5 text-[#6C8176] hover:text-[#14211A] hover:bg-[#F3F7F4] rounded-lg transition-colors cursor-pointer"
+              title="Close navigation"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <div>
-            <div className="flex items-center space-x-1.5">
-              <span className="font-extrabold text-[17px] tracking-tight text-[#123D26]">
-                LIFE OS
-              </span>
-            </div>
-            <span className="block text-[11px] text-[#6C8176] font-medium leading-none -mt-0.5">
-              Organize Your Life
-            </span>
-          </div>
-        </Link>
 
         {/* Navigation List */}
         <nav className="space-y-0.5">
@@ -85,6 +119,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onClose}
                 className={`flex items-center justify-between px-3.5 py-2 rounded-xl text-[13px] font-medium transition-all ${
                   isActive
                     ? "bg-[#EBF5EE] text-[#165B33] font-semibold"
@@ -123,6 +158,7 @@ export function Sidebar() {
         {/* User Card */}
         <Link
           href="/settings"
+          onClick={onClose}
           className="flex items-center justify-between p-2 rounded-xl hover:bg-[#F7FAF8] transition-colors"
         >
           <div className="flex items-center space-x-2.5 overflow-hidden">
@@ -155,5 +191,6 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  </>
   );
 }

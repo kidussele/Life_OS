@@ -273,7 +273,7 @@ export async function seedInitialData() {
       end: "04:30",
       dur: 30,
       priority: "high",
-      status: "completed",
+      status: "upcoming",
       prot: 1,
       goal: "goal_90d_spiritual",
     },
@@ -286,7 +286,7 @@ export async function seedInitialData() {
       end: "05:00",
       dur: 30,
       priority: "medium",
-      status: "completed",
+      status: "upcoming",
       prot: 0,
       goal: null,
     },
@@ -299,7 +299,7 @@ export async function seedInitialData() {
       end: "06:00",
       dur: 30,
       priority: "medium",
-      status: "completed",
+      status: "upcoming",
       prot: 0,
       goal: null,
     },
@@ -312,7 +312,7 @@ export async function seedInitialData() {
       end: "06:40",
       dur: 40,
       priority: "high",
-      status: "completed",
+      status: "upcoming",
       prot: 0,
       goal: null,
     },
@@ -325,7 +325,7 @@ export async function seedInitialData() {
       end: "12:00",
       dur: 240,
       priority: "high",
-      status: "completed",
+      status: "upcoming",
       prot: 1,
       goal: null,
     },
@@ -495,8 +495,8 @@ export async function seedInitialData() {
       args: [h.id, userId, h.name, h.cat],
     });
 
-    // Mark morning habits as completed for today
-    const isCompletedMorning = ["h_wake", "h_m_prayer", "h_exercise", "h_english", "h_prof_learn", "h_work"].includes(h.id) ? 1 : 0;
+    // Initialize all habits as pending for clean start
+    const isCompletedMorning = 0;
     await db.execute({
       sql: `INSERT INTO habit_logs (id, habit_id, date, completed) VALUES (?, ?, ?, ?)`,
       args: [`hl_${h.id}_${today}`, h.id, today, isCompletedMorning],

@@ -235,7 +235,7 @@ export default function ForexJournalPage() {
                 {stats.winRate}%
               </div>
               <span className="text-[10px] text-[#64748B] font-medium block truncate">
-                ({stats.wins}W - {stats.losses}L) ({stats.wins}W - {stats.losses}L)
+                ({stats.wins}W - {stats.losses}L)
               </span>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function ForexJournalPage() {
             <div className="min-w-0">
               <span className="text-[11px] font-bold text-[#64748B] block">Total Net R</span>
               <div className="text-2xl font-extrabold text-[#0F172A] leading-tight mt-0.5">
-                +{stats.totalR}R
+                {stats.totalR > 0 ? `+${stats.totalR}R` : `${stats.totalR}R`}
               </div>
               <span className="text-[10px] text-[#64748B] font-medium block truncate">
                 Multiples of Risk Handled

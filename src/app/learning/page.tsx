@@ -105,9 +105,9 @@ export default function CareerLearningPage() {
         "Performance Optimization",
       ],
       image: "/learning/nextjs_laptop.jpg",
-      status: "In Progress",
+      status: "Active",
       statusColor: "bg-[#EFF6FF] text-[#1D4ED8] border-[#BFDBFE]",
-      progressLabel: "65%",
+      progressLabel: "Sprint 1 Ready",
     },
     {
       id: "rm_db",

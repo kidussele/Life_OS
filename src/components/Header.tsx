@@ -15,11 +15,38 @@ import {
   Hourglass,
   AlertTriangle,
   XCircle,
+  Menu,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import { useTimeEngine } from "@/hooks/useTimeEngine";
 import { DailyTask } from "@/lib/types";
 
-export function Header() {
+interface HeaderProps {
+  onOpenMobileMenu?: () => void;
+}
+
+const SEARCH_MODULES = [
+  { name: "Dashboard", href: "/", category: "Overview", desc: "Daily schedule, priority focus & status summary" },
+  { name: "My Day", href: "/my-day", category: "Execution", desc: "Active focus mode and step-by-step task flow" },
+  { name: "Life Journey", href: "/journey", category: "Roadmap", desc: "90-Day transformation sprint roadmap" },
+  { name: "Calendar", href: "/calendar", category: "Schedule", desc: "Weekly, monthly and daily calendar views" },
+  { name: "Goals", href: "/goals", category: "Strategy", desc: "Strategic sprint goals and targets" },
+  { name: "Life Categories", href: "/categories", category: "Domains", desc: "8 holistic life architecture domains" },
+  { name: "Discipline", href: "/discipline", category: "Habits", desc: "Daily habit tracking and consistency streaks" },
+  { name: "Spiritual Life", href: "/spiritual", category: "Spiritual", desc: "Morning & evening prayer and scripture meditation" },
+  { name: "Career & Learning", href: "/learning", category: "Learning", desc: "Software engineering, React, TypeScript & English" },
+  { name: "Freelancing", href: "/freelancing", category: "Work", desc: "Client CRM, proposals, and project delivery" },
+  { name: "Business (Suku)", href: "/suku", category: "Business", desc: "Suku marketplace development and merchant operations" },
+  { name: "Forex Journal", href: "/forex", category: "Finance", desc: "Forex trading journal, backtest stats & win-rate" },
+  { name: "Financial Management", href: "/finances", category: "Finance", desc: "Income, expense ledger, savings & emergency reserve" },
+  { name: "Health & Fitness", href: "/health", category: "Health", desc: "Workouts, mobility, nutrition and recovery metrics" },
+  { name: "Family & Relations", href: "/family", category: "Family", desc: "Family duty, calls and meaningful relationships" },
+  { name: "Reports & Stats", href: "/reports", category: "Analytics", desc: "Weekly discipline reports and domain analysis" },
+  { name: "Settings", href: "/settings", category: "System", desc: "Timezone, preferences, notifications & data reset" },
+];
+
+export function Header({ onOpenMobileMenu }: HeaderProps) {
   const {
     timezone,
     timezoneInfo,
@@ -27,6 +54,9 @@ export function Header() {
     journeyInfo,
     summarizeTasks,
   } = useTimeEngine();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [taskSummary, setTaskSummary] = useState({
@@ -115,7 +145,19 @@ export function Header() {
   return (
     <header className="min-h-18 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-[#E2E9E4] bg-white/80 backdrop-blur-md sticky top-0 z-30 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
       {/* Left: Date, Journey & Live Clock */}
-      <div className="flex items-center flex-wrap gap-4 sm:gap-6">
+      <div className="flex items-center flex-wrap gap-3 sm:gap-6">
+        {/* Mobile Hamburger Drawer Toggle */}
+        {onOpenMobileMenu && (
+          <button
+            type="button"
+            onClick={onOpenMobileMenu}
+            className="lg:hidden p-2 text-[#485A50] hover:text-[#165B33] hover:bg-[#EBF5EE] rounded-xl transition-colors cursor-pointer -ml-1"
+            title="Open navigation menu"
+          >
+            <Menu size={20} />
+          </button>
+        )}
+
         {/* Date & 90-Day Journey Progress Widget */}
         <div className="flex items-center space-x-2.5">
           <div className="w-9 h-9 rounded-xl bg-[#EBF5EE] text-[#165B33] flex items-center justify-center flex-shrink-0 shadow-xs border border-[#D5E6DC]">
@@ -227,17 +269,76 @@ export function Header() {
 
       {/* Right Search, Notification, and User Profile Pill */}
       <div className="flex items-center space-x-3 sm:space-x-3.5 ml-auto">
-        {/* Search Bar */}
-        <div className="relative hidden md:block w-52 lg:w-60">
+        {/* Search Bar with Quick-Jump Dropdown */}
+        <div className="relative hidden md:block w-56 lg:w-72">
           <Search
             size={14}
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8CA095]"
           />
           <input
             type="text"
-            placeholder="Search tasks, goals..."
-            className="w-full pl-9 pr-3.5 py-1.5 text-[12px] bg-[#F7FAF8] border border-[#E2E9E4] rounded-full focus:outline-none focus:border-[#165B33] text-[#14211A] placeholder-[#8CA095]"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setIsSearchOpen(true);
+            }}
+            onFocus={() => setIsSearchOpen(true)}
+            placeholder="Search pages, modules, goals..."
+            className="w-full pl-9 pr-3.5 py-1.5 text-[12px] bg-[#F7FAF8] border border-[#E2E9E4] rounded-full focus:outline-none focus:border-[#165B33] text-[#14211A] placeholder-[#8CA095] transition-all"
           />
+
+          {isSearchOpen && (
+            <>
+              {/* Invisible backdrop to dismiss on click outside */}
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setIsSearchOpen(false)}
+              />
+
+              <div className="absolute right-0 top-10 w-80 bg-white rounded-2xl shadow-xl border border-[#D5E2D9] p-3 z-40 max-h-88 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="text-[10px] font-extrabold text-[#6C8176] uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+                  <span>Quick-Jump Pages</span>
+                  <span className="text-[9px] font-normal lowercase bg-[#F0FDF4] text-[#165B33] px-1.5 py-0.5 rounded">
+                    {searchQuery ? "filtered" : "all modules"}
+                  </span>
+                </div>
+
+                <div className="space-y-1 mt-1">
+                  {SEARCH_MODULES.filter((m) =>
+                    !searchQuery ||
+                    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    m.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    m.desc.toLowerCase().includes(searchQuery.toLowerCase())
+                  ).slice(0, 8).map((module) => (
+                    <Link
+                      key={module.href}
+                      href={module.href}
+                      onClick={() => {
+                        setIsSearchOpen(false);
+                        setSearchQuery("");
+                      }}
+                      className="p-2 rounded-xl hover:bg-[#F0FDF4] border border-transparent hover:border-[#BBF7D0] flex items-center justify-between transition-colors group block"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[12.5px] font-bold text-[#14211A] group-hover:text-[#165B33] truncate">
+                            {module.name}
+                          </span>
+                          <span className="text-[9.5px] font-semibold text-[#6C8176] bg-[#F3F4F6] px-1.5 py-0.5 rounded">
+                            {module.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6C8176] truncate mt-0.5">
+                          {module.desc}
+                        </p>
+                      </div>
+                      <ArrowRight size={13} className="text-[#9CA3AF] group-hover:text-[#165B33] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Notifications Icon with Dynamic Badge & Dropdown */}
