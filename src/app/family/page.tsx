@@ -593,7 +593,7 @@ export default function FamilyPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] font-semibold text-[#374151] mb-1">
                 Target Frequency

@@ -21,6 +21,8 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Sprout,
   Compass,
   X,
@@ -37,6 +39,8 @@ interface NavItem {
 interface SidebarProps {
   mobileOpen?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const navItems: NavItem[] = [
@@ -60,7 +64,12 @@ const navItems: NavItem[] = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
+export function Sidebar({
+  mobileOpen = false,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -69,130 +78,235 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       {mobileOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-xs transition-opacity duration-200"
+          aria-hidden="true"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-xs transition-opacity duration-200"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-[#E2E9E4] flex flex-col justify-between h-screen overflow-y-auto select-none px-4 py-4 transition-transform duration-200 lg:static lg:translate-x-0 lg:w-64 lg:flex-shrink-0 ${
-          mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+        id="life-os-sidebar"
+        aria-label="Main Navigation"
+        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-[#E2E9E4] flex flex-col justify-between h-screen overflow-y-auto overflow-x-hidden select-none transition-all duration-300 ease-in-out lg:static lg:translate-x-0 lg:flex-shrink-0 ${
+          /* Mobile Drawer: always full width when opened, slide from left */
+          mobileOpen
+            ? "translate-x-0 w-72 max-w-[85vw] px-4 py-4 shadow-2xl"
+            : "-translate-x-full lg:translate-x-0"
+        } ${
+          /* Desktop Width: collapsed vs expanded */
+          isCollapsed ? "lg:w-[72px] lg:px-2.5 lg:py-4" : "lg:w-[260px] lg:px-4 lg:py-4"
         }`}
       >
         <div>
-          {/* Logo Section with Mobile Close Button */}
-          <div className="flex items-center justify-between mb-5">
+          {/* Header Section: Logo + Mobile Close / Desktop Collapse Button */}
+          <div
+            className={`flex items-center mb-5 ${
+              isCollapsed
+                ? "justify-center flex-col gap-2.5"
+                : "justify-between px-1"
+            }`}
+          >
+            {/* Logo Link */}
             <Link
               href="/"
               onClick={onClose}
-              className="flex items-center space-x-2.5 px-2 py-1"
+              title="LIFE OS — Organize Your Life"
+              className={`flex items-center space-x-2.5 rounded-xl hover:bg-[#F3F7F4] p-1 transition-colors ${
+                isCollapsed ? "justify-center" : ""
+              }`}
             >
-              <div className="w-8 h-8 rounded-lg bg-[#EBF5EE] text-[#165B33] flex items-center justify-center shadow-xs">
-                <Sprout size={22} className="text-[#165B33]" />
+              <div className="w-9 h-9 rounded-xl bg-[#EBF5EE] text-[#165B33] flex items-center justify-center shadow-2xs border border-[#D5E6DC] flex-shrink-0">
+                <Sprout size={20} className="text-[#165B33]" />
               </div>
-              <div>
+
+              {/* Text hidden when desktop collapsed */}
+              <div className={isCollapsed ? "hidden" : "block min-w-0"}>
                 <div className="flex items-center space-x-1.5">
-                  <span className="font-extrabold text-[17px] tracking-tight text-[#123D26]">
+                  <span className="font-extrabold text-[16px] tracking-tight text-[#123D26] truncate">
                     LIFE OS
                   </span>
                 </div>
-                <span className="block text-[11px] text-[#6C8176] font-medium leading-none -mt-0.5">
+                <span className="block text-[10.5px] text-[#6C8176] font-medium leading-none -mt-0.5 truncate">
                   Organize Your Life
                 </span>
               </div>
             </Link>
 
+            {/* Mobile Close Button (Hidden on Desktop) */}
             <button
               type="button"
               onClick={onClose}
               className="lg:hidden p-1.5 text-[#6C8176] hover:text-[#14211A] hover:bg-[#F3F7F4] rounded-lg transition-colors cursor-pointer"
               title="Close navigation"
+              aria-label="Close navigation"
             >
               <X size={20} />
             </button>
+
+            {/* Desktop Collapse / Expand Toggle Button */}
+            {onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className={`hidden lg:flex p-1.5 text-[#6C8176] hover:text-[#165B33] hover:bg-[#EBF5EE] rounded-lg transition-colors cursor-pointer border border-transparent hover:border-[#D5E6DC] ${
+                  isCollapsed ? "mt-1" : ""
+                }`}
+                title={
+                  isCollapsed
+                    ? "Expand sidebar (Ctrl+B)"
+                    : "Collapse sidebar (Ctrl+B)"
+                }
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-expanded={!isCollapsed}
+              >
+                {isCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+              </button>
+            )}
           </div>
 
-        {/* Navigation List */}
-        <nav className="space-y-0.5">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
+          {/* Navigation Items List */}
+          <nav className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center justify-between px-3.5 py-2 rounded-xl text-[13px] font-medium transition-all ${
-                  isActive
-                    ? "bg-[#EBF5EE] text-[#165B33] font-semibold"
-                    : "text-[#485A50] hover:text-[#14211A] hover:bg-[#F7FAF8]"
-                }`}
-              >
-                <div className="flex items-center space-x-3 truncate">
-                  <Icon
-                    size={17}
-                    className={`flex-shrink-0 ${
-                      isActive ? "text-[#165B33]" : "text-[#6C8176]"
-                    }`}
-                  />
-                  <span className="truncate">{item.name}</span>
-                </div>
-
-                {item.badge && (
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              return (
+                <div key={item.href} className="relative group">
+                  <Link
+                    href={item.href}
+                    onClick={onClose}
+                    title={
+                      isCollapsed
+                        ? `${item.name}${item.badge ? ` (${item.badge})` : ""}`
+                        : undefined
+                    }
+                    className={`flex items-center rounded-xl text-[13px] font-medium transition-all ${
+                      isCollapsed
+                        ? "justify-center p-2.5"
+                        : "justify-between px-3.5 py-2"
+                    } ${
                       isActive
-                        ? "bg-[#165B33] text-white"
-                        : "bg-[#EBF5EE] text-[#165B33]"
+                        ? "bg-[#EBF5EE] text-[#165B33] font-semibold shadow-2xs border border-[#D5E6DC]"
+                        : "text-[#485A50] hover:text-[#14211A] hover:bg-[#F7FAF8]"
                     }`}
                   >
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+                    <div
+                      className={`flex items-center truncate ${
+                        isCollapsed ? "justify-center relative" : "space-x-3"
+                      }`}
+                    >
+                      <Icon
+                        size={17}
+                        className={`flex-shrink-0 transition-transform ${
+                          isActive
+                            ? "text-[#165B33]"
+                            : "text-[#6C8176] group-hover:text-[#165B33]"
+                        }`}
+                      />
+                      {/* Active indicator dot when collapsed */}
+                      {isCollapsed && isActive && (
+                        <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#165B33]" />
+                      )}
+                      {/* Item label - hidden in collapsed state on desktop */}
+                      <span className={isCollapsed ? "hidden" : "truncate"}>
+                        {item.name}
+                      </span>
+                    </div>
 
-      {/* Bottom Profile and Mini Motivational Card */}
-      <div className="pt-4 border-t border-[#E8ECE8] space-y-3">
-        {/* User Card */}
-        <Link
-          href="/settings"
-          onClick={onClose}
-          className="flex items-center justify-between p-2 rounded-xl hover:bg-[#F7FAF8] transition-colors"
-        >
-          <div className="flex items-center space-x-2.5 overflow-hidden">
-            <div className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border border-[#CBD7CE]">
-              <Image
-                src="/avatar.jpg"
-                alt="Kidus Seleshi"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="truncate">
-              <div className="text-[13px] font-bold text-[#14211A] truncate">
-                Kidus Seleshi
-              </div>
-              <div className="text-[11px] text-[#6C8176] truncate">
-                Full Stack Developer
-              </div>
-            </div>
-          </div>
-          <ChevronDown size={15} className="text-[#6C8176] flex-shrink-0 ml-1" />
-        </Link>
+                    {/* Badge - hidden in collapsed state on desktop */}
+                    {!isCollapsed && item.badge && (
+                      <span
+                        className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-1 ${
+                          isActive
+                            ? "bg-[#165B33] text-white"
+                            : "bg-[#EBF5EE] text-[#165B33]"
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
 
-        {/* Motivational Card */}
-        <div className="p-3 bg-[#F3F9F5] rounded-xl border border-[#DCEEE3] flex items-start space-x-2.5">
-          <Sprout size={16} className="text-[#165B33] flex-shrink-0 mt-0.5" />
-          <p className="text-[11px] text-[#345140] leading-snug font-medium">
-            Small consistent steps create big results.
-          </p>
+                  {/* Desktop Floating Tooltip on Hover in Collapsed Mode */}
+                  {isCollapsed && (
+                    <div className="hidden lg:group-hover:flex absolute left-full ml-2.5 top-1/2 -translate-y-1/2 z-50 px-2.5 py-1.5 bg-[#14211A] text-white text-[11.5px] font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
+                      <span>{item.name}</span>
+                      {item.badge && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-[#269153] text-white">
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
         </div>
-      </div>
-    </aside>
-  </>
+
+        {/* Bottom Profile and Motivational Card */}
+        <div className="pt-3 border-t border-[#E8ECE8] space-y-2.5">
+          {/* User Profile Card */}
+          <div className="relative group">
+            <Link
+              href="/settings"
+              onClick={onClose}
+              title={isCollapsed ? "Kidus Seleshi — Settings" : undefined}
+              className={`flex items-center rounded-xl hover:bg-[#F7FAF8] transition-colors p-1.5 ${
+                isCollapsed ? "justify-center" : "justify-between"
+              }`}
+            >
+              <div
+                className={`flex items-center overflow-hidden ${
+                  isCollapsed ? "justify-center" : "space-x-2.5"
+                }`}
+              >
+                <div className="relative w-8.5 h-8.5 rounded-full overflow-hidden flex-shrink-0 border border-[#CBD7CE] shadow-2xs">
+                  <Image
+                    src="/avatar.jpg"
+                    alt="Kidus Seleshi"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                {!isCollapsed && (
+                  <div className="truncate min-w-0">
+                    <div className="text-[12.5px] font-bold text-[#14211A] truncate">
+                      Kidus Seleshi
+                    </div>
+                    <div className="text-[10.5px] text-[#6C8176] truncate">
+                      Full Stack Developer
+                    </div>
+                  </div>
+                )}
+              </div>
+              {!isCollapsed && (
+                <ChevronDown
+                  size={14}
+                  className="text-[#6C8176] flex-shrink-0 ml-1"
+                />
+              )}
+            </Link>
+
+            {/* Collapsed profile tooltip */}
+            {isCollapsed && (
+              <div className="hidden lg:group-hover:flex absolute left-full ml-2.5 bottom-2 z-50 px-2.5 py-1.5 bg-[#14211A] text-white text-[11.5px] font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
+                <span>Kidus Seleshi</span>
+                <span className="text-[9px] text-[#9CB6A6]">Settings</span>
+              </div>
+            )}
+          </div>
+
+          {/* Motivational Mini Card (Hidden when desktop collapsed) */}
+          {!isCollapsed && (
+            <div className="p-2.5 bg-[#F3F9F5] rounded-xl border border-[#DCEEE3] flex items-start space-x-2">
+              <Sprout size={15} className="text-[#165B33] flex-shrink-0 mt-0.5" />
+              <p className="text-[10.5px] text-[#345140] leading-snug font-medium">
+                Small consistent steps create big results.
+              </p>
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }

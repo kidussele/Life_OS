@@ -738,7 +738,7 @@ export default function GoalsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-bold text-[#14211A] mb-1">
                     Strategic Tier
@@ -800,7 +800,7 @@ export default function GoalsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[12px] font-bold text-[#14211A] mb-1">
                     Target Deadline

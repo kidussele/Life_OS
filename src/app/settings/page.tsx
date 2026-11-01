@@ -606,7 +606,7 @@ export default function SettingsPage() {
             </div>
 
             {/* Time boxes */}
-            <div className="grid grid-cols-2 gap-4 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               {/* Wake Time */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#E8F8F0] border border-[#B7E4C7] flex items-center justify-center text-[#165B33] flex-shrink-0">
@@ -769,7 +769,7 @@ export default function SettingsPage() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div className="bg-[#FAFDFB] border border-[#E1EFE7] rounded-xl p-3">
                     <p className="text-[10.5px] font-bold text-[#6B7280] uppercase tracking-wider">LOCAL DATE & TIME</p>
                     <p className="text-[13px] font-bold text-[#111827] mt-0.5 truncate">{timeState.displayDateStr}</p>
@@ -1017,7 +1017,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] font-semibold text-[#374151] mb-1">
                 Monthly Base Salary
@@ -1078,7 +1078,7 @@ export default function SettingsPage() {
             Adjust your fixed routine schedule. The system monitors sleep duration to prevent cognitive fatigue.
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[12px] font-semibold text-[#374151] mb-1">
                 Target Bedtime

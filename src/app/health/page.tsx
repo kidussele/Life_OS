@@ -484,7 +484,7 @@ export default function HealthFitnessPage() {
               Set non-negotiable bedtime and wake-up times to guarantee at least 7.5 to 8.0 hours of physical sleep recovery.
             </p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-[#0F172A] mb-1">
                   Bedtime Target

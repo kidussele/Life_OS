@@ -632,7 +632,7 @@ export default function CareerLearningPage() {
                     </span>
                   </div>
                   <p className="text-[12px] text-[#5A6E63]">{rm.subtitle}</p>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#EAEFEA]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-[#EAEFEA]">
                     {rm.items.map((it, idx) => (
                       <div key={idx} className="flex items-center space-x-2 text-[12px]">
                         <CheckCircle2 size={13} className="text-[#165B33]" />

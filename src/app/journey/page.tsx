@@ -670,21 +670,21 @@ export default function LifeJourneyPage() {
 
   // Zoom handlers
   const handleZoomIn = () => setZoom((z) => Math.min(1.4, Number((z + 0.1).toFixed(2))));
-  const handleZoomOut = () => setZoom((z) => Math.max(0.6, Number((z - 0.1).toFixed(2))));
+  const handleZoomOut = () => setZoom((z) => Math.max(0.25, Number((z - 0.1).toFixed(2))));
   const handleResetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   };
   const handleFitToScreen = () => {
     if (viewportRef.current) {
-      const containerWidth = viewportRef.current.clientWidth - 40;
-      const targetScale = Math.min(1, Math.max(0.65, Number((containerWidth / 1320).toFixed(2))));
+      const containerWidth = viewportRef.current.clientWidth - 32;
+      const targetScale = Math.min(1, Math.max(0.25, Number((containerWidth / 1320).toFixed(2))));
       setZoom(targetScale);
       setPan({ x: 0, y: 0 });
     }
   };
 
-  // Drag-to-pan handlers
+  // Drag-to-pan handlers (Mouse & Touch)
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".interactive-node, button, a")) return;
     setIsDragging(true);
@@ -700,6 +700,24 @@ export default function LifeJourneyPage() {
   };
 
   const handleMouseUp = () => setIsDragging(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest(".interactive-node, button, a")) return;
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setPan({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y,
+    });
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
 
   return (
     <AppLayout>
@@ -1003,7 +1021,11 @@ export default function LifeJourneyPage() {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          className="relative bg-gradient-to-br from-[#FAFCFA] via-white to-[#F2F8F4] rounded-3xl border border-[#D5E2D9] shadow-xs overflow-x-auto overflow-y-hidden select-none min-h-[1920px] cursor-grab active:cursor-grabbing"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          className="relative bg-gradient-to-br from-[#FAFCFA] via-white to-[#F2F8F4] rounded-3xl border border-[#D5E2D9] shadow-xs overflow-x-auto overflow-y-hidden select-none min-h-[1920px] cursor-grab active:cursor-grabbing touch-pan-x touch-pan-y"
           style={{ touchAction: "pan-x pan-y" }}
         >
           {/* Subtle Grid Canvas Background */}
@@ -2499,7 +2521,7 @@ export default function LifeJourneyPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-[12.5px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12.5px]">
                 <div className="p-3 rounded-xl bg-[#F7FAF8] border border-[#E2E9E4]">
                   <span className="text-[#6C8176] block text-[11px]">Academic Baseline</span>
                   <span className="font-bold text-[#14211A]">Computer Science Graduate</span>

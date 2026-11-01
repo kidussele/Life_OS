@@ -1228,7 +1228,7 @@ export default function DashboardPage() {
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   {[
                     { label: "Health", href: "/health", pct: `${categories.health ?? 0}%`, icon: Heart, color: "text-[#16A34A]" },
                     { label: "Spiritual", href: "/spiritual", pct: `${categories.spiritual ?? 0}%`, icon: Anchor, color: "text-[#D97706]" },
@@ -1384,7 +1384,7 @@ export default function DashboardPage() {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-[#F7FAF8] border border-[#E2E9E4]">
                   <div className="flex items-center space-x-1.5 text-[#165B33] mb-1">
                     <Calendar size={15} />

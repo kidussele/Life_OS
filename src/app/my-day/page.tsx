@@ -1349,7 +1349,7 @@ export default function MyDayPage() {
                 </div>
 
                 {/* 3 Metric Pills */}
-                <div className="grid grid-cols-3 gap-3 flex-1 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 flex-1 w-full">
                   {/* Completed */}
                   <div className="p-3 rounded-2xl bg-[#F7FAF8] border border-[#E2E9E4] flex items-center space-x-3">
                     <div className="w-9 h-9 rounded-xl bg-[#EBF5EE] text-[#165B33] flex items-center justify-center flex-shrink-0">
@@ -1794,7 +1794,7 @@ export default function MyDayPage() {
               </div>
 
               {/* 4 Metric Tiles */}
-              <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                 {/* 1. Done */}
                 <div className="p-2.5 rounded-2xl bg-[#F0F7F3] border border-[#D5EEDD] flex flex-col items-center">
                   <CheckCircle2 size={16} className="text-[#165B33]" />
@@ -1894,7 +1894,7 @@ export default function MyDayPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                     Start Time
@@ -2024,7 +2024,7 @@ export default function MyDayPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                     Category
@@ -2062,7 +2062,7 @@ export default function MyDayPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                     Start Time
@@ -2144,7 +2144,7 @@ export default function MyDayPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                     Start Time
@@ -2171,7 +2171,7 @@ export default function MyDayPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                     Category

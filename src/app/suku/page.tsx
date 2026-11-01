@@ -905,7 +905,7 @@ export default function SukuCommandCenterPage() {
               </div>
 
               {/* 4 Weekly Stat Blocks */}
-              <div className="grid grid-cols-4 gap-2 mb-4 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-center">
                 <div className="bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
                   <span className="text-[10px] uppercase font-bold text-[#64748B] block">
                     Planned
@@ -961,28 +961,30 @@ export default function SukuCommandCenterPage() {
               </div>
 
               {/* Day-by-Day Sprint Cadence */}
-              <div className="grid grid-cols-7 gap-1 text-center pt-1 mb-4">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => {
-                  const isFocusDay = day === "Thu" || day === "Sat";
-                  return (
-                    <div
-                      key={day}
-                      className={`p-2 rounded-lg border text-[11px] ${
-                        isFocusDay
-                          ? "bg-[#F0FDF4] border-[#86EFAC] font-bold text-[#165B33]"
-                          : "bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]"
-                      }`}
-                    >
-                      <div className="text-[10px] uppercase">{day}</div>
-                      <div className="text-[12px] mt-0.5">{idx + 1}</div>
-                      {isFocusDay && (
-                        <div className="text-[9px] font-semibold text-[#165B33]">
-                          {day === "Thu" ? "60m" : "3.5h"}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto pb-1 mb-4">
+                <div className="grid grid-cols-7 min-w-[280px] gap-1 text-center pt-1">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => {
+                    const isFocusDay = day === "Thu" || day === "Sat";
+                    return (
+                      <div
+                        key={day}
+                        className={`p-2 rounded-lg border text-[11px] ${
+                          isFocusDay
+                            ? "bg-[#F0FDF4] border-[#86EFAC] font-bold text-[#165B33]"
+                            : "bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]"
+                        }`}
+                      >
+                        <div className="text-[10px] uppercase">{day}</div>
+                        <div className="text-[12px] mt-0.5">{idx + 1}</div>
+                        {isFocusDay && (
+                          <div className="text-[9px] font-semibold text-[#165B33]">
+                            {day === "Thu" ? "60m" : "3.5h"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

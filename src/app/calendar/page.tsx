@@ -541,7 +541,7 @@ export default function CalendarPage() {
                 </div>
 
                 {/* 3 Action Buttons in 3-column grid */}
-                <div className="grid grid-cols-3 gap-2.5 text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center">
                   {/* Action 1: Add Task */}
                   <button
                     type="button"
@@ -744,7 +744,7 @@ export default function CalendarPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-bold text-[#14211A] mb-1">
                     Start Time

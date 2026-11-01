@@ -777,7 +777,7 @@ export default function ReportsPage() {
             <form onSubmit={handleSaveReview} className="space-y-4 bg-[#F8FAFC] p-4 sm:p-5 rounded-2xl border border-[#E2E8F0]">
               <h4 className="text-[13.5px] font-bold text-[#0F172A]">Weekly Reflection & Schedule Recalibration</h4>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#475569] mb-1">Week Start Date</label>
                   <input

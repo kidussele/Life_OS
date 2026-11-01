@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Modal } from "./Modal";
-import { Plus } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -15,6 +14,67 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [taskInstructions, setTaskInstructions] = useState("");
   const [taskPriority, setTaskPriority] = useState("medium");
   const [loading, setLoading] = useState(false);
+
+  // Sidebar expanded / collapsed desktop state with persistence
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Load sidebar collapsed state from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("life_os_sidebar_collapsed");
+      if (saved !== null) {
+        setIsSidebarCollapsed(saved === "true");
+      }
+    } catch (_) {}
+  }, []);
+
+  const toggleSidebarCollapse = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("life_os_sidebar_collapsed", String(next));
+      } catch (_) {}
+      return next;
+    });
+  }, []);
+
+  // Global Keyboard shortcuts:
+  // - Ctrl+B / Cmd+B: Toggle Sidebar Expand/Collapse
+  // - Escape: Close Mobile Navigation Drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const isInput =
+        targetTag === "input" ||
+        targetTag === "textarea" ||
+        (e.target as HTMLElement)?.isContentEditable;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebarCollapse();
+      }
+
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [toggleSidebarCollapse, mobileMenuOpen]);
+
+  // Lock body scroll on mobile when drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +116,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
     <div className="flex h-screen bg-[#F3F7F4] overflow-hidden text-[#14211A]">
-      <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      {/* Responsive Collapsible Sidebar & Mobile Drawer */}
+      <Sidebar
+        mobileOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
+      />
+
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6 xl:p-8">
+
+        <main className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 xl:p-8">
           <div className="w-full max-w-[1720px] mx-auto">{children}</div>
         </main>
       </div>
@@ -89,7 +156,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                 Start Time
@@ -114,7 +181,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] font-semibold text-[#181E1B] mb-1">
                 Category

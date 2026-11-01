@@ -519,7 +519,7 @@ export default function FreelancingPage() {
             </div>
 
             {/* 4 Metric Tiles Grid */}
-            <div className="grid grid-cols-4 gap-2 text-center pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
               {/* Tile 1 */}
               <div className="p-3 rounded-2xl bg-[#F7FAF8] border border-[#E2EAE5] flex flex-col items-center justify-center space-y-1">
                 <Send size={16} className="text-[#0284C7]" />
@@ -601,7 +601,7 @@ export default function FreelancingPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[12px] font-bold text-[#14211A] mb-1">
                     Company / Business

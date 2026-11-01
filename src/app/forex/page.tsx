@@ -632,7 +632,7 @@ export default function ForexJournalPage() {
           maxWidth="max-w-xl"
         >
           <form onSubmit={handleCreateTrade} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-semibold text-[#0F172A] mb-1">
                   Account Type
@@ -666,7 +666,7 @@ export default function ForexJournalPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-semibold text-[#0F172A] mb-1">
                   Trade Direction
@@ -738,7 +738,7 @@ export default function ForexJournalPage() {
               </select>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <label className="block text-[11px] font-semibold text-[#0F172A] mb-1">
                   Entry Price
@@ -785,7 +785,7 @@ export default function ForexJournalPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <label className="block text-[11px] font-semibold text-[#0F172A] mb-1">
                   Outcome

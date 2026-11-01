@@ -535,7 +535,7 @@ export default function FinancialManagementPage() {
                 <h3 className="text-[13px] font-bold text-[#0F172A]">Quick Actions</h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={() => setIsModalOpen(true)}
                   className="bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#165B33] border border-[#BBF7D0] px-3 py-2 rounded-xl text-[12px] font-semibold flex items-center justify-center space-x-1 transition-colors shadow-sm"
@@ -659,7 +659,7 @@ export default function FinancialManagementPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-semibold text-[#0F172A] mb-1">
                   Amount (ETB) *
@@ -688,7 +688,7 @@ export default function FinancialManagementPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[12px] font-semibold text-[#0F172A] mb-1">
                   Category *

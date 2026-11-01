@@ -245,10 +245,10 @@ export function FocusModeModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-[#D5E2D9] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-[calc(100vw-1.25rem)] sm:max-w-lg max-h-[94vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-[#D5E2D9]">
         {/* Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8ECE8] bg-[#F7FAF8]">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#E8ECE8] bg-[#F7FAF8] sticky top-0 z-10">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#EBF5EE] text-[#165B33] flex items-center justify-center shadow-xs">
               <Sparkles size={18} />
@@ -484,7 +484,7 @@ export function FocusModeModal({
               <div className="text-[12px] font-semibold text-[#14211A]">
                 Update linked task status:
               </div>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   disabled={isSaving}

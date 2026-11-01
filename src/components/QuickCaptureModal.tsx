@@ -117,10 +117,10 @@ export function QuickCaptureModal({ isOpen, onClose, onItemAdded }: QuickCapture
   const ActiveIcon = activeTypeObj.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-[#D5E2D9] overflow-hidden flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-[calc(100vw-1.25rem)] sm:max-w-xl bg-white rounded-3xl shadow-2xl border border-[#D5E2D9] overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8ECE8] bg-[#F7FAF8]">
+        <div className="flex items-center justify-between px-3.5 sm:px-6 py-3 sm:py-4 border-b border-[#E8ECE8] bg-[#F7FAF8]">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#EBF5EE] text-[#165B33] flex items-center justify-center shadow-xs">
               <Zap size={18} />
@@ -178,14 +178,14 @@ export function QuickCaptureModal({ isOpen, onClose, onItemAdded }: QuickCapture
 
         {/* Tab 1: New Capture Form */}
         {activeTab === "capture" ? (
-          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-3.5 sm:p-6 overflow-y-auto">
             {/* Capture Types Grid */}
             <div className="mb-4">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6C8176] mb-2 flex items-center gap-1">
                 <Layers size={12} />
                 <span>Select Capture Type</span>
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {CAPTURE_TYPES.map((t) => {
                   const Icon = t.icon;
                   const isSelected = selectedType === t.id;

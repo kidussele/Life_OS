@@ -366,7 +366,7 @@ export default function SpiritualLifePage() {
               </div>
 
               {/* 3 Stats Columns */}
-              <div className="grid grid-cols-3 gap-3 flex-1 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 text-center">
                 {/* Morning */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-[#D97706]">
