@@ -156,7 +156,7 @@ export function getNowInTimezone(timezone?: string, referenceDate: Date = new Da
 
   const year = partMap["year"] || "2026";
   const month = partMap["month"] || "11";
-  const day = partMap["day"] || "01";
+  const day = partMap["day"] || "02";
   const hour = partMap["hour"] === "24" ? "00" : partMap["hour"] || "00";
   const minute = partMap["minute"] || "00";
   const second = partMap["second"] || "00";
@@ -270,20 +270,34 @@ export function calculateIntelligentTaskStatus(
     const startMins = parseTimeToMinutes(startTime);
     const endMins = parseTimeToMinutes(endTime);
 
-    if (curMins < startMins) {
-      const diff = startMins - curMins;
-      if (diff > 0 && diff <= reminderWindowMinutes) {
-        return "starting_soon";
+    // Handle overnight task spanning across midnight (e.g., 22:00 - 04:00)
+    if (endMins < startMins) {
+      if (curMins >= startMins || curMins <= endMins) {
+        return "in_progress";
       }
-      return "upcoming";
-    }
+      if (curMins < startMins && curMins > endMins) {
+        const diff = startMins - curMins;
+        if (diff > 0 && diff <= reminderWindowMinutes) {
+          return "starting_soon";
+        }
+        return "upcoming";
+      }
+    } else {
+      if (curMins < startMins) {
+        const diff = startMins - curMins;
+        if (diff > 0 && diff <= reminderWindowMinutes) {
+          return "starting_soon";
+        }
+        return "upcoming";
+      }
 
-    if (curMins >= startMins && curMins <= endMins) {
-      return "in_progress";
-    }
+      if (curMins >= startMins && curMins <= endMins) {
+        return "in_progress";
+      }
 
-    if (curMins > endMins) {
-      return "overdue";
+      if (curMins > endMins) {
+        return "overdue";
+      }
     }
   }
 
@@ -428,6 +442,9 @@ export function getWhatShouldIDoNow(
     if (t.status === "completed" || t.status === "skipped" || t.status === "rescheduled") return false;
     const sMins = parseTimeToMinutes(t.start_time);
     const eMins = parseTimeToMinutes(t.end_time);
+    if (eMins < sMins) {
+      return curMins >= sMins || curMins <= eMins;
+    }
     return curMins >= sMins && curMins <= eMins;
   });
 
@@ -445,13 +462,20 @@ export function getWhatShouldIDoNow(
   // Check for overdue tasks
   const overdueTasks = todayTasks.filter((t) => {
     if (t.status === "completed" || t.status === "skipped" || t.status === "rescheduled") return false;
+    const sMins = parseTimeToMinutes(t.start_time);
     const eMins = parseTimeToMinutes(t.end_time);
+    if (eMins < sMins) {
+      return curMins > eMins && curMins < sMins;
+    }
     return curMins > eMins;
   });
 
   if (activeTask) {
+    const sMins = parseTimeToMinutes(activeTask.start_time);
     const endMins = parseTimeToMinutes(activeTask.end_time);
-    const remMins = Math.max(0, endMins - curMins);
+    const remMins = endMins < sMins
+      ? (curMins >= sMins ? (1440 - curMins) + endMins : endMins - curMins)
+      : Math.max(0, endMins - curMins);
     return {
       state: "in_progress",
       currentActivity: activeTask,

@@ -36,7 +36,7 @@ interface HabitItem {
 
 export default function DisciplinePage() {
   const { now } = useTimeEngine();
-  const [selectedDate, setSelectedDate] = useState<string>("2026-11-01");
+  const [selectedDate, setSelectedDate] = useState<string>("2026-11-02");
   const [loading, setLoading] = useState(false);
   const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
 
@@ -289,7 +289,7 @@ export default function DisciplinePage() {
   const allHabits = [...leftHabits, ...rightHabits];
   const completedCount = allHabits.filter((h) => h.completed).length;
   const totalCount = allHabits.length;
-  const progressPercent = Math.round((completedCount / totalCount) * 100);
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   // Status badge styling
   const getStatusBadge = (status: "Completed" | "In Progress" | "Pending") => {

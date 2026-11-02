@@ -591,7 +591,20 @@ export default function DashboardPage() {
 
   const completedCount = schedule.filter((s) => s.completed).length;
   const totalTasks = schedule.length;
-  const completionPercent = Math.round((completedCount / totalTasks) * 100);
+  const completionPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
+  // Genuine recorded focus hours and prayer anchors (no fabricated progress)
+  const focusMinsCompleted = schedule
+    .filter((s) => s.completed && (s.category === "work" || s.category === "learning" || s.category === "development" || s.category === "freelancing" || s.category === "forex" || s.category === "business"))
+    .reduce((acc, s) => {
+      const mins = parseInt(s.duration) || 0;
+      return acc + mins;
+    }, 0);
+  const focusHoursCompleted = Number((focusMinsCompleted / 60).toFixed(1));
+
+  const prayerTasks = schedule.filter((s) => s.category === "spiritual" || s.title.toLowerCase().includes("prayer"));
+  const completedPrayers = prayerTasks.filter((s) => s.completed).length;
+  const totalPrayers = prayerTasks.length || 2;
 
   // Active / current task
   const activeTask =
@@ -1478,7 +1491,9 @@ export default function DashboardPage() {
                       <Clock size={14} className="text-[#165B33]" />
                       Focus Hours
                     </span>
-                    <span className="font-bold text-[#14211A]">16 Hours</span>
+                    <span className="font-bold text-[#14211A]">
+                      {focusHoursCompleted > 0 ? `${focusHoursCompleted} Hours` : "0 Hours (No sessions)"}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -1486,7 +1501,9 @@ export default function DashboardPage() {
                       <Anchor size={14} className="text-[#165B33]" />
                       Prayer Anchors
                     </span>
-                    <span className="font-bold text-[#14211A]">2 / 2 Protected</span>
+                    <span className="font-bold text-[#14211A]">
+                      {completedPrayers} / {totalPrayers} {completedPrayers === totalPrayers && totalPrayers > 0 ? "Protected" : "Logged"}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -1494,7 +1511,9 @@ export default function DashboardPage() {
                       <Flame size={14} className="text-[#B47805]" />
                       Habit Discipline
                     </span>
-                    <span className="font-bold text-[#14211A]">100% on Track</span>
+                    <span className="font-bold text-[#14211A]">
+                      {totalTasks > 0 ? `${completionPercent}% on Track` : "0% (Day 1 Starting)"}
+                    </span>
                   </div>
                 </div>
               </div>

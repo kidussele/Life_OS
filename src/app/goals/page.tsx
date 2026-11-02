@@ -352,7 +352,7 @@ export default function GoalsPage() {
             m.id === milestoneId ? { ...m, completed: nextStatus === "completed" } : m
           );
           const completedCount = updatedMilestones.filter((m) => m.completed).length;
-          const newProgress = Math.round((completedCount / updatedMilestones.length) * 100);
+          const newProgress = updatedMilestones.length > 0 ? Math.round((completedCount / updatedMilestones.length) * 100) : 0;
           return {
             ...g,
             progress: newProgress,
@@ -369,7 +369,7 @@ export default function GoalsPage() {
         m.id === milestoneId ? { ...m, completed: nextStatus === "completed" } : m
       );
       const completedCount = updatedMilestones.filter((m) => m.completed).length;
-      const newProgress = Math.round((completedCount / updatedMilestones.length) * 100);
+      const newProgress = updatedMilestones.length > 0 ? Math.round((completedCount / updatedMilestones.length) * 100) : 0;
       setSelectedGoalForDetails({
         ...selectedGoalForDetails,
         progress: newProgress,

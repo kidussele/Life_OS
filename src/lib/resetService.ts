@@ -206,6 +206,7 @@ export async function executeCleanDataReset(options: {
     { start: "20:45", end: "21:15", dur: 30, title: "Family Time & Wind-down", cat: "family", prot: 1, scr: 0, desc: "Relaxation, presence with family, screen-free atmosphere." },
     { start: "21:15", end: "21:45", dur: 30, title: "Night Prayer & Gratitude", cat: "spiritual", prot: 1, scr: 0, desc: "Gratitude, spiritual reflection, mental peace. Non-negotiable." },
     { start: "21:45", end: "22:00", dur: 15, title: "Sleep Preparation", cat: "rest", prot: 0, scr: 0, desc: "Dim lights, prepare clothes, phone off. Protect 6+ hours restorative sleep." },
+    { start: "22:00", end: "04:00", dur: 360, title: "Quality Sleep & Physical Recovery", cat: "rest", prot: 1, scr: 0, desc: "Deep restorative sleep and physical recovery. Target 10:00 PM to 4:00 AM." },
   ];
 
   for (let i = 0; i < masterWeekdayBlocks.length; i++) {

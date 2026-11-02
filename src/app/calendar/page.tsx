@@ -217,7 +217,7 @@ export default function CalendarPage() {
 
   const completedCount = scheduleList.filter((r) => r.status === "completed").length;
   const totalCount = scheduleList.length;
-  const progressPercent = Math.round((completedCount / totalCount) * 100);
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
     <AppLayout>
@@ -292,7 +292,13 @@ export default function CalendarPage() {
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="font-mono px-1">Nov 1, 2026</span>
+                <span className="font-mono px-1">
+                  {new Intl.DateTimeFormat("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  }).format(new Date(`${currentDate}T12:00:00Z`))}
+                </span>
                 <button
                   type="button"
                   onClick={handleNextDay}
@@ -666,7 +672,7 @@ export default function CalendarPage() {
                   Weekly Master Schedule &amp; Evening Focus Rotation
                 </h3>
               </div>
-              <span className="text-[12px] text-[#6C8176]">November 1 – November 7, 2026</span>
+              <span className="text-[12px] text-[#6C8176]">November 2 – November 8, 2026</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3.5">

@@ -28,7 +28,7 @@ export default function SpiritualLifePage() {
   const [logs, setLogs] = useState<PrayerLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTimerType, setActiveTimerType] = useState<"morning" | "night" | null>(null);
-  const [today, setToday] = useState("2026-11-01");
+  const [today, setToday] = useState("2026-11-02");
 
   // Local state for today's status
   const [morningCompleted, setMorningCompleted] = useState(false);

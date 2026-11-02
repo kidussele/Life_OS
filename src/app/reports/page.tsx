@@ -604,7 +604,7 @@ export default function ReportsPage() {
                         </div>
                       </div>
                       <span className="text-[10px] text-[#94A3B8] font-mono whitespace-nowrap pl-2">
-                        Nov 1, 2026
+                        Nov 2, 2026
                       </span>
                     </div>
 

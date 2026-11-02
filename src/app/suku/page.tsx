@@ -296,7 +296,7 @@ export default function SukuCommandCenterPage() {
   };
 
   // Current system date
-  const todayStr = "2026-11-01";
+  const todayStr = "2026-11-02";
 
   // Calculate project performance stats strictly from actual tasks
   const totalTasks = tasks.length;
@@ -371,10 +371,10 @@ export default function SukuCommandCenterPage() {
     })[0];
   }, [tasks]);
 
-  // Weekly Progress (Week of Nov 1 - Nov 7, 2026)
+  // Weekly Progress (Week of Nov 2 - Nov 8, 2026)
   const weeklyMetrics = useMemo(() => {
-    const weekStart = "2026-11-01";
-    const weekEnd = "2026-11-07";
+    const weekStart = "2026-11-02";
+    const weekEnd = "2026-11-08";
 
     const weeklyTasks = tasks.filter((t) => {
       const stage = getTaskStageId(t);

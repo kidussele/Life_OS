@@ -96,27 +96,27 @@ export default function LifeJourneyPage() {
   const [realData, setRealData] = useState({
     salary: 30000,
     familySupport: 10000,
-    actualSavings: 3000, // From financial transactions
+    actualSavings: 0, // Genuine balance from financial transactions
     plannedMonthlySavings: 3000,
     totalExpenses: 15700,
-    workoutsCompleted: 1, // Target: 48 sessions
-    workoutMinutes: 30,
-    prayersCompleted: 1, // Target: 180 sessions (90 morning, 90 night)
-    prayerMinutes: 30,
-    englishHours: 4.5, // Target: 45 hours
-    vocabMastered: 4, // Target: 60 words
-    softwareDevHours: 12, // Target: 60 hours
-    projectsCompleted: 1, // Target: 2 projects
-    freelanceOutreachCount: 5, // Target: 60 attempts
-    freelanceProposalsSent: 1,
+    workoutsCompleted: 0, // Target: 48 sessions
+    workoutMinutes: 0,
+    prayersCompleted: 0, // Target: 180 sessions (90 morning, 90 night)
+    prayerMinutes: 0,
+    englishHours: 0, // Target: 45 hours
+    vocabMastered: 0, // Target: 60 words
+    softwareDevHours: 0, // Target: 60 hours
+    projectsCompleted: 0, // Target: 2 projects
+    freelanceOutreachCount: 0, // Target: 60 attempts
+    freelanceProposalsSent: 0,
     freelanceClientsAcquired: 0, // Target: 1 paying client
     actualFreelanceIncomeETB: 0, // NEVER invent income
-    sukuModulesTested: 2, // Target: 9 modules
+    sukuModulesTested: 0, // Target: 9 modules
     sukuModulesTotal: 9,
-    forexBacktestTrades: 3, // Target: 100 trades
-    forexWinRate: 66.7,
-    forexTotalR: 4.3,
-    familyReflectionsCount: 1, // Target: 12 reflections
+    forexBacktestTrades: 0, // Target: 100 trades
+    forexWinRate: 0,
+    forexTotalR: 0,
+    familyReflectionsCount: 0, // Target: 12 reflections
   });
 
   // Zoom & Pan Canvas Controls
@@ -153,18 +153,26 @@ export default function LifeJourneyPage() {
 
         if (jourData?.profile) setProfile(jourData.profile);
 
-        // Compute actual numbers from database records
-        const actualSaved = finData?.summary?.emergencyFund || 3000;
-        const prayersCount = prayerData?.logs?.filter((p: any) => p.completed === 1).length || 1;
-        const workoutsCount =
-          habitData?.habits?.find((h: any) => h.id === "h_exercise")?.completed_today ? 1 : 1;
-        const tradesCount = fxData?.trades?.length || 3;
-        const winrate = fxData?.stats?.winRate || 66.7;
-        const totalR = fxData?.stats?.totalR || 4.3;
-        const sukuDone =
-          sukuData?.tasks?.filter((t: any) => t.status === "completed").length || 2;
-        const vocabCount = learnData?.vocab?.length || 4;
-        const proposalsCount = freeData?.projects?.length || 1;
+        // Compute actual numbers from database records strictly without fabricated fallbacks
+        const actualSaved = Number(finData?.summary?.emergencyFund ?? 0);
+        const prayersCount = Array.isArray(prayerData?.logs)
+          ? prayerData.logs.filter((p: any) => p.completed === 1).length
+          : 0;
+        const workoutsCount = Array.isArray(habitData?.habits)
+          ? (habitData.habits.find((h: any) => h.id === "h_exercise")?.completed_today ? 1 : 0)
+          : 0;
+        const tradesCount = Array.isArray(fxData?.trades) ? fxData.trades.length : 0;
+        const winrate = Number(fxData?.stats?.winRate ?? 0);
+        const totalR = Number(fxData?.stats?.totalR ?? 0);
+        const sukuDone = Array.isArray(sukuData?.tasks)
+          ? sukuData.tasks.filter((t: any) => t.status === "completed").length
+          : 0;
+        const vocabCount = Array.isArray(learnData?.vocab)
+          ? learnData.vocab.filter((v: any) => v.mastered === 1 || v.status === "mastered").length
+          : 0;
+        const proposalsCount = Array.isArray(freeData?.projects)
+          ? freeData.projects.filter((p: any) => p.status === "completed" || p.proposals_sent > 0).length
+          : 0;
 
         setRealData((prev) => ({
           ...prev,
@@ -277,9 +285,9 @@ export default function LifeJourneyPage() {
 
   // Overall 90-Day Weighted Progress (transparent average across 9 life categories)
   const categoryValues = Object.values(categoryMetrics);
-  const overall90DayProgress = Math.round(
+  const overall90DayProgress = categoryValues.length > 0 ? Math.round(
     categoryValues.reduce((sum, cat) => sum + cat.progress, 0) / categoryValues.length
-  );
+  ) : 0;
 
   // ────────────────────────────────────────────────────────────────
   // THE 7 CHRONOLOGICAL MILESTONE CARDS WITH MEASURABLE DATA
@@ -317,12 +325,12 @@ export default function LifeJourneyPage() {
           title: "Sleep Target & Recovery",
           metricLabel: "Nightly Sleep Hours",
           startValue: "6.0h",
-          currentActual: "7.5h",
+          currentActual: "6.0h",
           targetValue: "7.5h",
-          remaining: "0h",
+          remaining: "1.5h deficit",
           unit: "hours",
           deadline: "November 7, 2026",
-          progress: 100,
+          progress: 80,
         },
       ],
       relatedTasks: [
@@ -762,7 +770,7 @@ export default function LifeJourneyPage() {
                     90-Day Mission Sprint
                   </div>
                   <div className="text-[11px] text-[#5A6E63] font-medium leading-tight">
-                    Nov 1, 2026 – Jan 29, 2027
+                    Nov 2, 2026 – Jan 30, 2027
                   </div>
                 </div>
               </div>
@@ -1496,7 +1504,7 @@ export default function LifeJourneyPage() {
                       My Current Reality
                     </h3>
                     <span className="text-[11px] text-[#5A6E63] font-medium block mt-0.5">
-                      Starting: Nov 1, 2026
+                      Starting: Nov 2, 2026
                     </span>
                   </div>
                 </div>
@@ -1578,7 +1586,7 @@ export default function LifeJourneyPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[#6C8176]">Sleep Recovery:</span>
-                    <strong className="text-[#14211A]">Target: 7.5h • Actual: 7.5h</strong>
+                    <strong className="text-[#B45309]">Target: 7.5h • Actual: 6.0h (1.5h Deficit)</strong>
                   </div>
                   <div className="flex items-center justify-between text-[#165B33] font-semibold">
                     <span>Deadline: Nov 7, 2026</span>
@@ -2504,7 +2512,7 @@ export default function LifeJourneyPage() {
           <Modal
             isOpen={isStartModalOpen}
             onClose={() => setIsStartModalOpen(false)}
-            title="Start — My Current Reality (November 1, 2026)"
+            title="Start — My Current Reality (November 2, 2026)"
             maxWidth="max-w-xl"
           >
             <div className="space-y-4">
@@ -2517,7 +2525,7 @@ export default function LifeJourneyPage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <span className="absolute bottom-3 left-4 text-white text-[13px] font-bold">
-                  Baseline: November 1, 2026 Trailhead
+                  Baseline: November 2, 2026 Trailhead
                 </span>
               </div>
 

@@ -135,13 +135,11 @@ export async function PATCH(request: Request) {
           });
           const totalG = Number(goalTasksRes.rows[0]?.total || 0);
           const doneG = Number(goalTasksRes.rows[0]?.done || 0);
-          if (totalG > 0) {
-            const newPct = Math.round((doneG / totalG) * 100);
-            await db.execute({
-              sql: "UPDATE goals SET progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE id = ?",
-              args: [newPct, newPct, task.goal_id],
-            });
-          }
+          const newPct = totalG > 0 ? Math.round((doneG / totalG) * 100) : 0;
+          await db.execute({
+            sql: "UPDATE goals SET progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE id = ?",
+            args: [newPct, newPct, task.goal_id],
+          });
         }
       }
     } catch (syncErr) {

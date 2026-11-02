@@ -28,12 +28,12 @@ export default function HealthFitnessPage() {
   const [isHealthPlanModalOpen, setIsHealthPlanModalOpen] = useState(false);
   const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
 
-  // Health Metrics
+  // Health Metrics (Initial state starts clean on Day 1 until recorded)
   const [bedtime, setBedtime] = useState("22:00");
-  const [wakeTime, setWakeTime] = useState("06:00");
-  const [waterGlasses, setWaterGlasses] = useState(6);
-  const [sleepQuality, setSleepQuality] = useState(85);
-  const [recoveryScore, setRecoveryScore] = useState(92);
+  const [wakeTime, setWakeTime] = useState("04:00");
+  const [waterGlasses, setWaterGlasses] = useState(0);
+  const [sleepQuality, setSleepQuality] = useState(0);
+  const [recoveryScore, setRecoveryScore] = useState(0);
 
   useEffect(() => {
     const loadHealth = async () => {
@@ -86,25 +86,25 @@ export default function HealthFitnessPage() {
         {/* 1. TOP SLEEP DURATION ADVISORY BANNER                     */}
         {/* ========================================================= */}
         {showAdvisory && (
-          <div className="relative bg-[#F0FDF4] border border-[#BBF7D0] p-3 sm:p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="relative bg-[#FFFBEB] border border-[#FDE68A] p-3 sm:p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-start space-x-3 min-w-0 pr-6 sm:pr-0">
-              {/* Runner Icon in Mint Circle */}
-              <div className="w-8 h-8 rounded-full bg-[#DCFCE7] text-[#165B33] flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-[16px]">🏃</span>
+              {/* Alert Icon in Amber Circle */}
+              <div className="w-8 h-8 rounded-full bg-[#FEF3C7] text-[#B45309] flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-[16px]">⚠️</span>
               </div>
 
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-bold text-[13px] text-[#0F172A]">
-                    Sleep Duration Advisory (6 hrs / night)
+                    Sleep Duration Advisory (6.0 hrs / night vs 7.5h target)
                   </h3>
-                  <span className="bg-[#DCFCE7] text-[#165B33] text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border border-[#86EFAC]">
-                    INSUFFICIENT RECOVERY
+                  <span className="bg-[#FEF3C7] text-[#B45309] text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border border-[#FDE68A]">
+                    INSUFFICIENT RECOVERY (1.5H DEFICIT)
                   </span>
                 </div>
 
-                <p className="text-[11px] text-[#475569] leading-relaxed mt-0.5">
-                  You need preferences set for bedtime at 22:00 and wake-up at 06:00, resulting in 8 daily hours of sleep. Chronic sub-7h sleep impairs cognitive endurance, emotional stability in trading, and software engineering precision.
+                <p className="text-[11px] text-[#78350F] leading-relaxed mt-0.5">
+                  Your configured schedule (22:00 bedtime to 04:00 wake-up) provides 6.0 hours of sleep against your 7.5-hour target. A persistent 1.5-hour nightly deficit accumulates to 10.5 hours of fatigue per week, impairing cognitive endurance, emotional discipline in trading, and software engineering precision.
                 </p>
               </div>
             </div>
@@ -211,10 +211,10 @@ export default function HealthFitnessPage() {
                   Sleep Quality
                 </span>
                 <div className="text-2xl font-extrabold text-[#0F172A] leading-tight mt-0.5">
-                  {sleepQuality}%
+                  {sleepQuality > 0 ? `${sleepQuality}%` : "—"}
                 </div>
-                <span className="text-[11px] font-semibold text-[#16A34A] block truncate">
-                  Day 1 Baseline
+                <span className="text-[11px] font-semibold text-[#B45309] block truncate">
+                  {sleepQuality > 0 ? "Logged Quality" : "6.0h vs 7.5h Target"}
                 </span>
               </div>
             </div>
@@ -278,11 +278,11 @@ export default function HealthFitnessPage() {
                   Recovery Score
                 </span>
                 <div className="text-2xl font-extrabold text-[#0F172A] leading-tight mt-0.5">
-                  {recoveryScore}%
+                  {recoveryScore > 0 ? `${recoveryScore}%` : "—"}
                 </div>
-                <span className="text-[11px] font-semibold text-[#16A34A] flex items-center space-x-1 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-                  <span>Ready for Day 1</span>
+                <span className="text-[11px] font-semibold text-[#64748B] flex items-center space-x-1 mt-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${recoveryScore > 0 ? "bg-[#16A34A]" : "bg-[#94A3B8]"}`} />
+                  <span>{recoveryScore > 0 ? "Calculated Score" : "Awaiting Daily Log"}</span>
                 </span>
               </div>
             </div>

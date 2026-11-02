@@ -83,7 +83,7 @@ export function PrayerTimer({
 
   const mins = Math.floor(secondsRemaining / 60);
   const secs = secondsRemaining % 60;
-  const progressPercent = ((totalSeconds - secondsRemaining) / totalSeconds) * 100;
+  const progressPercent = totalSeconds > 0 ? ((totalSeconds - secondsRemaining) / totalSeconds) * 100 : 0;
 
   const handleFinishAndSave = async () => {
     setSubmitting(true);
