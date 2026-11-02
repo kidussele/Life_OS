@@ -436,22 +436,12 @@ export default function CalendarPage() {
                         }`}
                       />
 
-                      {/* Content Row: [Time] [Avatar] [Title & Subtitle] */}
+                      {/* Content Row: [Time] [Title & Subtitle] */}
                       <div className="flex items-center space-x-3.5 min-w-0 flex-1">
                         {/* Time Range */}
-                        <span className="font-mono text-[12px] font-bold text-[#486053] w-28 flex-shrink-0">
+                        <span className="font-mono text-[12px] font-bold text-[#165B33] bg-[#F4F9F6] px-2.5 py-1 rounded-lg border border-[#D5E2D9] w-28 text-center flex-shrink-0">
                           {item.time}
                         </span>
-
-                        {/* Image Thumbnail Avatar */}
-                        <div className="w-11 h-11 rounded-xl overflow-hidden relative flex-shrink-0 border border-[#D5E2D9]">
-                          <Image
-                            src={item.thumbnail}
-                            alt={item.title}
-                            fill
-                            className="object-cover group-hover:scale-105 transition-transform"
-                          />
-                        </div>
 
                         {/* Title & Short Description */}
                         <div className="min-w-0 flex-1">

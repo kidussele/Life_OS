@@ -563,21 +563,6 @@ export default function MyDayPage() {
     },
   ];
 
-  // Image lookup for each task
-  const getTaskImage = (title: string, category?: string) => {
-    const text = (title + " " + (category || "")).toLowerCase();
-    if (text.includes("prayer") || text.includes("spiritual")) return "/journey/prayer_spiritual.jpg";
-    if (text.includes("exercise") || text.includes("workout") || text.includes("mobility")) return "/journey/fitness_health.jpg";
-    if (text.includes("breakfast") || text.includes("shower") || text.includes("hygiene")) return "/journey/foundation_planner.jpg";
-    if (text.includes("english") || text.includes("vocab") || text.includes("speak")) return "/journey/english_mastery.jpg";
-    if (text.includes("code") || text.includes("study") || text.includes("next.js")) return "/journey/coding_mastery.jpg";
-    if (text.includes("employ") || text.includes("work") || text.includes("commute")) return "/journey/workspace.jpg";
-    if (text.includes("family") || text.includes("dinner")) return "/journey/family_harmony.jpg";
-    if (text.includes("suku") || text.includes("marketplace")) return "/journey/suku_mvp.jpg";
-    if (text.includes("financ") || text.includes("expense") || text.includes("saving")) return "/journey/financial_growth.jpg";
-    return "/journey/foundation_planner.jpg";
-  };
-
   // Calculations (Zero fabrication)
   const totalTasksCount = tasks.length;
   const completedTasksCount = tasks.filter((t) => t.status === "completed").length;
@@ -649,18 +634,9 @@ export default function MyDayPage() {
           {isCompleted && <Check size={13} strokeWidth={3} />}
         </button>
 
-        {/* Left: Thumbnail + Time + Title */}
+        {/* Left: Time + Title */}
         <div className="flex items-center space-x-3.5 min-w-0 flex-1">
-          <div className="w-11 h-11 rounded-xl overflow-hidden relative flex-shrink-0 border border-[#D5E2D9]">
-            <Image
-              src={getTaskImage(task.title, task.category)}
-              alt={task.title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform"
-            />
-          </div>
-
-          <span className="font-mono text-[12px] font-bold text-[#486053] w-24 sm:w-28 flex-shrink-0">
+          <span className="font-mono text-[12px] font-bold text-[#165B33] bg-[#F4F9F6] px-2.5 py-1 rounded-lg border border-[#D5E2D9] w-28 text-center flex-shrink-0">
             {task.start_time} – {task.end_time}
           </span>
 
