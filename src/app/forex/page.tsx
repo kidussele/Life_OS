@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Modal } from "@/components/Modal";
 import {

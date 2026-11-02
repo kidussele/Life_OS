@@ -56,7 +56,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 1,
     title: "Planning & Requirements",
     categoryKey: "product",
-    targetDate: "2026-10-25",
+    targetDate: "2026-11-08",
     defaultDescription: "Market specs, local commerce taxonomy & merchant catalog requirements",
     icon: Layers,
   },
@@ -64,7 +64,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 2,
     title: "UI/UX Design",
     categoryKey: "ui_ux",
-    targetDate: "2026-10-30",
+    targetDate: "2026-11-12",
     defaultDescription: "Mobile-first responsive storefront, filter drawer & design tokens",
     icon: Smartphone,
   },
@@ -72,7 +72,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 3,
     title: "Database & Backend Architecture",
     categoryKey: "backend",
-    targetDate: "2026-11-05",
+    targetDate: "2026-11-18",
     defaultDescription: "PostgreSQL/SQLite relational schema, ACID orders & merchant tables",
     icon: Server,
   },
@@ -80,7 +80,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 4,
     title: "Authentication & Security",
     categoryKey: "security",
-    targetDate: "2026-11-20",
+    targetDate: "2026-11-22",
     defaultDescription: "JWT tokens, merchant RBAC, CSRF defense & secure API middleware",
     icon: ShieldCheck,
   },
@@ -88,7 +88,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 5,
     title: "Product Catalog & Search",
     categoryKey: "product",
-    targetDate: "2026-11-15",
+    targetDate: "2026-11-28",
     defaultDescription: "Indexed fast search, category browsing & multi-image storage",
     icon: Search,
   },
@@ -96,7 +96,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 6,
     title: "Shopping Cart & Checkout",
     categoryKey: "backend",
-    targetDate: "2026-11-10",
+    targetDate: "2026-12-05",
     defaultDescription: "Persistent client cart, atomic checkout API & buyer invoices",
     icon: ShoppingBag,
   },
@@ -104,7 +104,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 7,
     title: "Payment Integration",
     categoryKey: "payment",
-    targetDate: "2026-11-25",
+    targetDate: "2026-12-12",
     defaultDescription: "Telebirr & Chapa webhook listeners, signature verification & receipts",
     icon: CreditCard,
   },
@@ -112,7 +112,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 8,
     title: "Seller & Buyer Management",
     categoryKey: "marketing",
-    targetDate: "2026-12-01",
+    targetDate: "2026-12-18",
     defaultDescription: "Merchant onboarding portal, store profiles & customer order histories",
     icon: Users,
   },
@@ -120,7 +120,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 9,
     title: "Delivery & Order Management",
     categoryKey: "backend",
-    targetDate: "2026-12-10",
+    targetDate: "2026-12-22",
     defaultDescription: "Addis Ababa delivery zones, OTP verification pins & courier routing",
     icon: Truck,
   },
@@ -128,7 +128,7 @@ const MILESTONE_STAGES: MilestoneStage[] = [
     id: 10,
     title: "Testing & Deployment",
     categoryKey: "testing",
-    targetDate: "2026-12-20",
+    targetDate: "2026-12-26",
     defaultDescription: "Playwright regression test suite, staging penetration tests & CI/CD",
     icon: Zap,
   },
@@ -187,6 +187,15 @@ export default function SukuCommandCenterPage() {
 
   useEffect(() => {
     fetchTasks();
+
+    const handleSukuRefresh = () => {
+      fetchTasks();
+    };
+
+    window.addEventListener("life_os_suku_updated", handleSukuRefresh);
+    return () => {
+      window.removeEventListener("life_os_suku_updated", handleSukuRefresh);
+    };
   }, []);
 
   const handleToggleTaskStatus = async (task: SukuTask) => {
@@ -202,6 +211,10 @@ export default function SukuCommandCenterPage() {
       });
       if (res.ok) {
         fetchTasks();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("life_os_suku_updated"));
+          window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -220,6 +233,10 @@ export default function SukuCommandCenterPage() {
       });
       if (res.ok) {
         fetchTasks();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("life_os_suku_updated"));
+          window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -234,6 +251,10 @@ export default function SukuCommandCenterPage() {
       });
       if (res.ok) {
         fetchTasks();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("life_os_suku_updated"));
+          window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -263,6 +284,10 @@ export default function SukuCommandCenterPage() {
         setTaskTitle("");
         setTaskDescription("");
         fetchTasks();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("life_os_suku_updated"));
+          window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -698,7 +723,7 @@ export default function SukuCommandCenterPage() {
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-[#64748B] pt-0.5">
-              <span>Foundation & Design (Completed)</span>
+              <span>Foundation & Design (Phase 1)</span>
               <span>Backend & Payments (Current Phase)</span>
               <span>Launch & Deployment ({targetLaunchDate})</span>
             </div>
@@ -1078,11 +1103,19 @@ export default function SukuCommandCenterPage() {
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : totalTasks === 0 ? (
                 <div className="py-8 text-center text-[#64748B]">
+                  <div className="w-10 h-10 rounded-2xl bg-[#F1F5F9] text-[#64748B] flex items-center justify-center mx-auto mb-2 font-bold text-sm">
+                    0
+                  </div>
+                  <p className="font-bold text-[14px] text-[#0F172A]">No Deliverables Defined Yet</p>
+                  <p className="text-[12px]">Add tasks to your milestone roadmap to track deliverables and deployment readiness.</p>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-[#165B33]">
                   <CheckCircle2 size={36} className="text-[#165B33] mx-auto mb-2" />
-                  <p className="font-bold text-[14px]">All Tasks Completed!</p>
-                  <p className="text-[12px]">Congratulations. Suku Marketplace is ready for deployment.</p>
+                  <p className="font-bold text-[14px]">All Active Tasks Completed!</p>
+                  <p className="text-[12px] text-[#64748B]">All {totalTasks} deliverables finished. Suku Marketplace is ready for stage review.</p>
                 </div>
               )}
             </div>

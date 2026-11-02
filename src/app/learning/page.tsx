@@ -43,7 +43,20 @@ export default function CareerLearningPage() {
   const [newExample, setNewExample] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch vocabulary from API
+  // Dynamic Learning Stats State
+  const [stats, setStats] = useState({
+    englishHours: 0,
+    englishTargetHours: 45,
+    englishPercent: 0,
+    softwareHours: 0,
+    softwareTargetHours: 60,
+    softwarePercent: 0,
+    overallProgress: 0,
+    studyStreak: 0,
+    completedProjects: 0,
+  });
+
+  // Fetch vocabulary & real stats from API
   const fetchLearningData = async () => {
     setLoading(true);
     try {
@@ -51,6 +64,9 @@ export default function CareerLearningPage() {
       if (res.ok) {
         const data = await res.json();
         setVocabList(data.vocab || []);
+        if (data.stats) {
+          setStats(data.stats);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -222,19 +238,19 @@ export default function CareerLearningPage() {
               </div>
             </div>
 
-            {/* Right Card: Overall Learning Progress (62%) */}
+            {/* Right Card: Overall Learning Progress */}
             <div className="flex items-center flex-shrink-0">
               <div className="bg-white/95 backdrop-blur-md border border-[#D5E2D9] rounded-2xl px-6 py-3 shadow-xs text-center min-w-[210px]">
                 <span className="text-[12px] font-bold text-[#14211A] block">
                   Overall Learning Progress
                 </span>
                 <span className="text-2xl sm:text-3xl font-extrabold text-[#112318] font-mono block my-0.5">
-                  62%
+                  {stats.overallProgress}%
                 </span>
                 <div className="w-full bg-[#E8EEEA] h-2 rounded-full overflow-hidden mt-1.5">
                   <div
                     className="bg-[#165B33] h-full rounded-full transition-all duration-700"
-                    style={{ width: "62%" }}
+                    style={{ width: `${stats.overallProgress}%` }}
                   />
                 </div>
               </div>
@@ -263,7 +279,7 @@ export default function CareerLearningPage() {
                     Target: <strong>90 min daily • 45 hours in 90 days</strong>
                   </p>
                   <span className="text-[12px] font-semibold text-[#14211A] block mt-1">
-                    Progress: 12.5 h / 45 h
+                    Progress: {stats.englishHours} h / 45 h
                   </span>
                 </div>
               </div>
@@ -282,16 +298,16 @@ export default function CareerLearningPage() {
               </button>
             </div>
 
-            {/* Horizontal Progress Bar with 28% label */}
+            {/* Horizontal Progress Bar */}
             <div className="flex items-center space-x-3 pt-1">
               <div className="flex-1 h-1.5 bg-[#E8EEEA] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#165B33] rounded-full transition-all duration-500"
-                  style={{ width: "28%" }}
+                  style={{ width: `${stats.englishPercent}%` }}
                 />
               </div>
               <span className="text-[11.5px] font-bold text-[#14211A] font-mono">
-                28%
+                {stats.englishPercent}%
               </span>
             </div>
           </div>
@@ -318,7 +334,7 @@ export default function CareerLearningPage() {
                     Target: <strong>60 hours • 2 projects</strong>
                   </p>
                   <span className="text-[12px] font-semibold text-[#14211A] block mt-1">
-                    Progress: 18 h / 60 h
+                    Progress: {stats.softwareHours} h / 60 h
                   </span>
                 </div>
               </div>
@@ -337,16 +353,16 @@ export default function CareerLearningPage() {
               </button>
             </div>
 
-            {/* Horizontal Progress Bar with 30% label */}
+            {/* Horizontal Progress Bar */}
             <div className="flex items-center space-x-3 pt-1">
               <div className="flex-1 h-1.5 bg-[#E8EEEA] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#165B33] rounded-full transition-all duration-500"
-                  style={{ width: "30%" }}
+                  style={{ width: `${stats.softwarePercent}%` }}
                 />
               </div>
               <span className="text-[11.5px] font-bold text-[#14211A] font-mono">
-                30%
+                {stats.softwarePercent}%
               </span>
             </div>
           </div>
@@ -505,7 +521,9 @@ export default function CareerLearningPage() {
                   <Flame size={16} className="text-[#D97706] mt-0.5 flex-shrink-0" />
                   <div>
                     <span className="text-[#6C8176] text-[11px] block font-normal">Study Streak</span>
-                    <strong className="text-[#14211A] font-bold">7 days 🔥</strong>
+                    <strong className="text-[#14211A] font-bold">
+                      {stats.studyStreak} days {stats.studyStreak > 0 ? "🔥" : "(Day 1 Baseline)"}
+                    </strong>
                   </div>
                 </div>
 
@@ -513,7 +531,9 @@ export default function CareerLearningPage() {
                   <Code2 size={16} className="text-[#165B33] mt-0.5 flex-shrink-0" />
                   <div>
                     <span className="text-[#6C8176] text-[11px] block font-normal">Total Learning Hours</span>
-                    <strong className="text-[#14211A] font-bold">18 / 60 h</strong>
+                    <strong className="text-[#14211A] font-bold">
+                      {stats.englishHours + stats.softwareHours} / 105 h
+                    </strong>
                   </div>
                 </div>
 
@@ -521,7 +541,7 @@ export default function CareerLearningPage() {
                   <GraduationCap size={16} className="text-[#165B33] mt-0.5 flex-shrink-0" />
                   <div>
                     <span className="text-[#6C8176] text-[11px] block font-normal">Projects Completed</span>
-                    <strong className="text-[#14211A] font-bold">0 / 2</strong>
+                    <strong className="text-[#14211A] font-bold">{stats.completedProjects} / 2</strong>
                   </div>
                 </div>
               </div>

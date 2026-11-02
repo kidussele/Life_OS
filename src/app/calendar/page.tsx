@@ -48,6 +48,11 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState<string>("2026-11-02");
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [upcomingMilestone, setUpcomingMilestone] = useState<{ title: string; targetDate: string; progress: number }>({
+    title: "Suku Planning & Requirements",
+    targetDate: "Nov 8, 2026",
+    progress: 0,
+  });
 
   // Modals state
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
@@ -125,6 +130,26 @@ export default function CalendarPage() {
         } else {
           setScheduleList([]);
         }
+
+        // Fetch upcoming Suku milestone dynamically
+        fetch("/api/goals")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((gData) => {
+            if (gData?.goals) {
+              const sukuGoal = gData.goals.find((g: any) => g.id === "goal_suku");
+              if (sukuGoal && sukuGoal.milestones?.length > 0) {
+                const pendingMilestone =
+                  sukuGoal.milestones.find((m: any) => m.status !== "completed") ||
+                  sukuGoal.milestones[0];
+                setUpcomingMilestone({
+                  title: pendingMilestone.title,
+                  targetDate: pendingMilestone.target_date,
+                  progress: sukuGoal.progress || 0,
+                });
+              }
+            }
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.error(e);
@@ -135,6 +160,15 @@ export default function CalendarPage() {
 
   useEffect(() => {
     loadData(currentDate);
+
+    const handleTaskRefresh = () => {
+      loadData(currentDate);
+    };
+
+    window.addEventListener("life_os_task_updated", handleTaskRefresh);
+    return () => {
+      window.removeEventListener("life_os_task_updated", handleTaskRefresh);
+    };
   }, [currentDate, timezone]);
 
   const handlePrevDay = () => {
@@ -210,6 +244,12 @@ export default function CalendarPage() {
         }),
       });
       loadData(currentDate);
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("life_os_task_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_habit_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+      }
     } catch (e) {
       console.error("Could not sync task status:", e);
     }
@@ -519,8 +559,16 @@ export default function CalendarPage() {
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#165B33]" />
-                      <span>On Track</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${totalCount === 0 ? "bg-[#94A3B8]" : progressPercent >= 70 ? "bg-[#165B33]" : "bg-[#3B82F6]"}`} />
+                      <span>
+                        {totalCount === 0
+                          ? "No Scheduled Tasks"
+                          : completedCount === 0
+                          ? "Day 1 Starting"
+                          : progressPercent >= 70
+                          ? "On Track"
+                          : "In Progress"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -615,22 +663,22 @@ export default function CalendarPage() {
 
                   <div className="min-w-0 flex-1">
                     <h4 className="text-[13px] font-bold text-[#14211A] truncate">
-                      Suku Marketplace Launch
+                      {upcomingMilestone.title}
                     </h4>
                     <span className="text-[11px] text-[#6C8176] block mt-0.5">
-                      Dec 31, 2026
+                      {upcomingMilestone.targetDate}
                     </span>
 
                     {/* Progress Bar */}
                     <div className="flex items-center space-x-2 mt-1">
                       <div className="flex-1 h-1.5 bg-[#E8EEEA] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#165B33] rounded-full"
-                          style={{ width: "66%" }}
+                          className="h-full bg-[#165B33] rounded-full transition-all duration-500"
+                          style={{ width: `${upcomingMilestone.progress}%` }}
                         />
                       </div>
                       <span className="text-[10.5px] font-bold text-[#14211A] font-mono">
-                        66%
+                        {upcomingMilestone.progress}%
                       </span>
                     </div>
                   </div>

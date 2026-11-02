@@ -141,6 +141,29 @@ export async function PATCH(request: Request) {
             args: [newPct, newPct, task.goal_id],
           });
         }
+
+        // 4. Synchronize Habit Logs (Discipline Module)
+        let habitId: string | null = null;
+        if (titleLower.includes("morning prayer")) habitId = "h_m_prayer";
+        else if (titleLower.includes("night prayer")) habitId = "h_n_prayer";
+        else if (task.category === "health" || titleLower.includes("workout") || titleLower.includes("exercise")) habitId = "h_exercise";
+        else if (titleLower.includes("english")) habitId = "h_english";
+        else if (titleLower.includes("professional")) habitId = "h_prof_learn";
+        else if (titleLower.includes("employment")) habitId = "h_work";
+        else if (titleLower.includes("development session") || titleLower.includes("suku") || titleLower.includes("freelance") || titleLower.includes("forex")) habitId = "h_dev_session";
+        else if (titleLower.includes("family")) habitId = "h_family";
+        else if (titleLower.includes("planning") || titleLower.includes("expenses")) habitId = "h_fin_track";
+        else if (titleLower.includes("sleep")) habitId = "h_sleep";
+
+        if (habitId) {
+          const hlId = `hl_${habitId}_${dateStr}`;
+          await db.execute({
+            sql: `INSERT INTO habit_logs (id, habit_id, date, completed)
+                  VALUES (?, ?, ?, ?)
+                  ON CONFLICT(habit_id, date) DO UPDATE SET completed = excluded.completed`,
+            args: [hlId, habitId, dateStr, isDone ? 1 : 0],
+          });
+        }
       }
     } catch (syncErr) {
       console.warn("Cross-system task sync warning:", syncErr);

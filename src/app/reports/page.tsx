@@ -37,7 +37,7 @@ export default function ReportsPage() {
     forexPerformance: "0.0R",
     forexChange: "0 trades logged",
     emergencySavings: "0 ETB",
-    emergencyChange: "Target 90,000 ETB",
+    emergencyChange: "Target 15,000 ETB",
     weeklyConsistency: 0,
     weeklyChange: "Day 1 Baseline",
     totalCapital: "0",
@@ -101,6 +101,17 @@ export default function ReportsPage() {
         if (repRes && repRes.ok) {
           const rep = await repRes.json();
           setReportData(rep);
+          if (rep.weeklyTrend && rep.weeklyTrend.length > 0) {
+            const daysWithTasks = rep.weeklyTrend.filter((d: any) => d.total > 0);
+            const avg = daysWithTasks.length > 0
+              ? Math.round(daysWithTasks.reduce((acc: number, d: any) => acc + d.percent, 0) / daysWithTasks.length)
+              : 0;
+            setMetrics((prev) => ({
+              ...prev,
+              weeklyConsistency: avg,
+              weeklyChange: avg > 0 ? `${avg}% executed` : "Day 1 Baseline",
+            }));
+          }
         }
       } catch (e) {
         console.error(e);
@@ -145,6 +156,26 @@ export default function ReportsPage() {
       setSavingReview(false);
     }
   };
+
+  const trendPoints = (reportData?.weeklyTrend && reportData.weeklyTrend.length === 7)
+    ? reportData.weeklyTrend.map((d: any, idx: number) => ({
+        x: 20 + idx * 45,
+        y: 110 - Math.round(((d.percent || 0) / 100) * 80),
+        label: d.day,
+        percent: d.percent || 0,
+      }))
+    : [
+        { x: 20, y: 110, label: "Mon", percent: 0 },
+        { x: 65, y: 110, label: "Tue", percent: 0 },
+        { x: 110, y: 110, label: "Wed", percent: 0 },
+        { x: 155, y: 110, label: "Thu", percent: 0 },
+        { x: 200, y: 110, label: "Fri", percent: 0 },
+        { x: 245, y: 110, label: "Sat", percent: 0 },
+        { x: 290, y: 110, label: "Sun", percent: 0 },
+      ];
+
+  const polylinePoints = trendPoints.map((p: any) => `${p.x},${p.y}`).join(" ");
+  const polygonPoints = `20,110 20,${trendPoints[0].y} ` + polylinePoints + ` 290,110`;
 
   return (
     <AppLayout>
@@ -315,7 +346,7 @@ export default function ReportsPage() {
                       stroke="#16A34A"
                       strokeWidth="10"
                       strokeDasharray="251.2"
-                      strokeDashoffset={251.2 * (1 - 0.92)}
+                      strokeDashoffset={251.2 * (1 - (metrics.weeklyConsistency || 0) / 100)}
                       strokeLinecap="round"
                       fill="transparent"
                       className="transition-all duration-700"
@@ -364,7 +395,7 @@ export default function ReportsPage() {
 
                   {/* Gradient Area Fill */}
                   <polygon
-                    points="20,70 65,65 110,50 155,60 200,65 245,45 290,30 290,110 20,110"
+                    points={polygonPoints}
                     fill="url(#consistencyArea)"
                   />
 
@@ -375,19 +406,11 @@ export default function ReportsPage() {
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    points="20,70 65,65 110,50 155,60 200,65 245,45 290,30"
+                    points={polylinePoints}
                   />
 
                   {/* Nodes */}
-                  {[
-                    { x: 20, y: 70 },
-                    { x: 65, y: 65 },
-                    { x: 110, y: 50 },
-                    { x: 155, y: 60 },
-                    { x: 200, y: 65 },
-                    { x: 245, y: 45 },
-                    { x: 290, y: 30 },
-                  ].map((pt, i) => (
+                  {trendPoints.map((pt: any, i: number) => (
                     <circle
                       key={i}
                       cx={pt.x}
@@ -400,15 +423,7 @@ export default function ReportsPage() {
                   ))}
 
                   {/* Days of Week Labels */}
-                  {[
-                    { label: "Mon", x: 20 },
-                    { label: "Tue", x: 65 },
-                    { label: "Wed", x: 110 },
-                    { label: "Thu", x: 155 },
-                    { label: "Fri", x: 200 },
-                    { label: "Sat", x: 245 },
-                    { label: "Sun", x: 290 },
-                  ].map((d, i) => (
+                  {trendPoints.map((d: any, i: number) => (
                     <text
                       key={i}
                       x={d.x}
@@ -423,9 +438,9 @@ export default function ReportsPage() {
                   ))}
                 </svg>
 
-                {/* Sunday 92% badge top right */}
+                {/* Consistency Badge top right */}
                 <div className="absolute right-0 top-1 bg-[#F0FDF4] border border-[#BBF7D0] text-[#16A34A] text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs">
-                  92%
+                  {metrics.weeklyConsistency}%
                 </div>
               </div>
             </div>
@@ -592,52 +607,10 @@ export default function ReportsPage() {
                     </div>
                   ))
                 ) : (
-                  <>
-                    <div className="flex items-start justify-between text-[12px]">
-                      <div className="flex items-start space-x-2 min-w-0">
-                        <Star size={14} className="text-[#F59E0B] fill-[#F59E0B] flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-bold text-[#0F172A] leading-tight">
-                            90-Day Consistency Streak
-                          </div>
-                          <div className="text-[11px] text-[#64748B]">Keep going!</div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-[#94A3B8] font-mono whitespace-nowrap pl-2">
-                        Nov 2, 2026
-                      </span>
-                    </div>
-
-                    <div className="flex items-start justify-between text-[12px]">
-                      <div className="flex items-start space-x-2 min-w-0">
-                        <Star size={14} className="text-[#F59E0B] fill-[#F59E0B] flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-bold text-[#0F172A] leading-tight">
-                            Completed 10 Projects
-                          </div>
-                          <div className="text-[11px] text-[#64748B]">Great progress!</div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-[#94A3B8] font-mono whitespace-nowrap pl-2">
-                        Oct 28, 2026
-                      </span>
-                    </div>
-
-                    <div className="flex items-start justify-between text-[12px]">
-                      <div className="flex items-start space-x-2 min-w-0">
-                        <Star size={14} className="text-[#F59E0B] fill-[#F59E0B] flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-bold text-[#0F172A] leading-tight">
-                            Saved 3,000 ETB
-                          </div>
-                          <div className="text-[11px] text-[#64748B]">Financial discipline!</div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-[#94A3B8] font-mono whitespace-nowrap pl-2">
-                        Oct 20, 2026
-                      </span>
-                    </div>
-                  </>
+                  <div className="p-3.5 text-center text-[#64748B] text-[11px] bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0]">
+                    <div className="font-bold text-[#0F172A] mb-1">No completed achievements yet</div>
+                    <div>Execute scheduled tasks and attain milestones to unlock verified achievements.</div>
+                  </div>
                 )}
               </div>
             </div>
@@ -652,34 +625,24 @@ export default function ReportsPage() {
               </div>
 
               {/* Connected Vertical Timeline */}
-              <div className="relative pl-4 space-y-3 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E2E8F0]">
-                {/* Activity 1 */}
-                <div className="relative text-[12px]">
-                  <span className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-[#16A34A] ring-2 ring-white" />
-                  <div className="font-bold text-[#0F172A] leading-tight">
-                    Completed: Morning Prayer Session
-                  </div>
-                  <div className="text-[10px] text-[#94A3B8]">2 hours ago</div>
+              {reportData?.recentActivity && reportData.recentActivity.length > 0 ? (
+                <div className="relative pl-4 space-y-3 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E2E8F0]">
+                  {reportData.recentActivity.map((act: any, idx: number) => (
+                    <div key={idx} className="relative text-[12px]">
+                      <span className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-[#16A34A] ring-2 ring-white" />
+                      <div className="font-bold text-[#0F172A] leading-tight truncate">
+                        {act.title}
+                      </div>
+                      <div className="text-[10px] text-[#94A3B8]">{act.time}</div>
+                    </div>
+                  ))}
                 </div>
-
-                {/* Activity 2 */}
-                <div className="relative text-[12px]">
-                  <span className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-[#16A34A] ring-2 ring-white" />
-                  <div className="font-bold text-[#0F172A] leading-tight">
-                    Updated: Suku Marketplace Task
-                  </div>
-                  <div className="text-[10px] text-[#94A3B8]">3 hours ago</div>
+              ) : (
+                <div className="p-3.5 text-center text-[#64748B] text-[11px] bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0]">
+                  <div className="font-bold text-[#0F172A] mb-1">No recent activity logged</div>
+                  <div>Tasks completed in My Day and active modules will populate this timeline.</div>
                 </div>
-
-                {/* Activity 3 */}
-                <div className="relative text-[12px]">
-                  <span className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-[#16A34A] ring-2 ring-white" />
-                  <div className="font-bold text-[#0F172A] leading-tight">
-                    Added: Monthly Budget Plan
-                  </div>
-                  <div className="text-[10px] text-[#94A3B8]">5 hours ago</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -702,15 +665,15 @@ export default function ReportsPage() {
               <div className="space-y-1.5 text-[11px] text-[#E2FBE9] font-medium leading-snug">
                 <div className="flex items-start space-x-1.5">
                   <CheckCircle2 size={13} className="text-[#86EFAC] flex-shrink-0 mt-0.5" />
-                  <span>Your consistency is excellent this month.</span>
+                  <span>Authoritative 90-day plan active: Nov 2, 2026.</span>
                 </div>
                 <div className="flex items-start space-x-1.5">
                   <CheckCircle2 size={13} className="text-[#86EFAC] flex-shrink-0 mt-0.5" />
-                  <span>You're on track to meet your financial goals.</span>
+                  <span>30-Day Emergency Cushion target set at 15,000 ETB.</span>
                 </div>
                 <div className="flex items-start space-x-1.5">
                   <CheckCircle2 size={13} className="text-[#86EFAC] flex-shrink-0 mt-0.5" />
-                  <span>Keep focusing on your next milestone!</span>
+                  <span>Zero unverified historical data; reports update from real execution.</span>
                 </div>
               </div>
 

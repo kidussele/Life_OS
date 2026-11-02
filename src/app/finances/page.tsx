@@ -53,16 +53,28 @@ export default function FinancialManagementPage() {
   // Budget settings
   const [monthlySalary, setMonthlySalary] = useState(30000);
   const [familyTarget, setFamilyTarget] = useState(10000);
-  const emergencyTarget = 90000;
+  const [emergencyTarget, setEmergencyTarget] = useState(15000);
 
   const fetchFinances = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/finances");
+      const [res, goalsRes] = await Promise.all([
+        fetch("/api/finances"),
+        fetch("/api/goals").catch(() => null),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setTransactions(data.transactions || []);
         if (data.summary) setSummary(data.summary);
+      }
+      if (goalsRes?.ok) {
+        const gData = await goalsRes.json();
+        const savGoal = (gData.goals || []).find(
+          (g: any) => g.id === "goal_monthly_savings" || g.category === "financial"
+        );
+        if (savGoal && savGoal.target_value) {
+          setEmergencyTarget(Number(savGoal.target_value));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -74,6 +86,12 @@ export default function FinancialManagementPage() {
   useEffect(() => {
     setTxDate(new Date().toISOString().split("T")[0]);
     fetchFinances();
+  }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => fetchFinances();
+    window.addEventListener("life_os_finance_updated", handleUpdate);
+    return () => window.removeEventListener("life_os_finance_updated", handleUpdate);
   }, []);
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
@@ -97,7 +115,9 @@ export default function FinancialManagementPage() {
         setIsModalOpen(false);
         setAmount("");
         setDescription("");
-        fetchFinances();
+        await fetchFinances();
+        window.dispatchEvent(new CustomEvent("life_os_finance_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
       }
     } catch (e) {
       console.error(e);
@@ -113,7 +133,9 @@ export default function FinancialManagementPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        fetchFinances();
+        await fetchFinances();
+        window.dispatchEvent(new CustomEvent("life_os_finance_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
       }
     } catch (e) {
       console.error(e);
@@ -799,7 +821,7 @@ export default function FinancialManagementPage() {
                 Emergency Fund 90-Day Target
               </label>
               <div className="px-3 py-2 text-[13px] bg-[#F1F5F9] border border-[#E2E8F0] rounded-lg font-mono font-bold text-[#0F172A]">
-                90,000 ETB (~3 Months Essential Reserve)
+                15,000 ETB (Initial 30-Day Emergency Cushion)
               </div>
             </div>
 

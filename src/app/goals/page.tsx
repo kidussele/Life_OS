@@ -273,6 +273,24 @@ export default function GoalsPage() {
   useEffect(() => {
     setNewStart(new Date().toISOString().split("T")[0]);
     fetchGoals();
+
+    const handleGoalRefresh = () => {
+      fetchGoals();
+    };
+
+    window.addEventListener("life_os_goal_updated", handleGoalRefresh);
+    window.addEventListener("life_os_task_updated", handleGoalRefresh);
+    window.addEventListener("life_os_finance_updated", handleGoalRefresh);
+    window.addEventListener("life_os_forex_updated", handleGoalRefresh);
+    window.addEventListener("life_os_suku_updated", handleGoalRefresh);
+
+    return () => {
+      window.removeEventListener("life_os_goal_updated", handleGoalRefresh);
+      window.removeEventListener("life_os_task_updated", handleGoalRefresh);
+      window.removeEventListener("life_os_finance_updated", handleGoalRefresh);
+      window.removeEventListener("life_os_forex_updated", handleGoalRefresh);
+      window.removeEventListener("life_os_suku_updated", handleGoalRefresh);
+    };
   }, []);
 
   const handleCreateGoal = async (e: React.FormEvent) => {
@@ -330,6 +348,10 @@ export default function GoalsPage() {
       setNewCriteria("");
       setNewTargetMetric("");
       fetchGoals();
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -387,6 +409,10 @@ export default function GoalsPage() {
           status: nextStatus,
         }),
       });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+      }
     } catch (e) {
       console.error("Could not sync milestone toggle:", e);
     }

@@ -155,6 +155,7 @@ export default function DisciplinePage() {
     learnHours: 0,
     devHours: 0,
   });
+  const [weeklyOverview, setWeeklyOverview] = useState<{ day: string; date?: string; percent: number }[]>([]);
 
   // Sync with DB
   const fetchHabits = async (dateStr: string) => {
@@ -165,6 +166,9 @@ export default function DisciplinePage() {
         const data = await res.json();
         if (data.stats) {
           setStats(data.stats);
+        }
+        if (data.weeklyOverview) {
+          setWeeklyOverview(data.weeklyOverview);
         }
         const dbHabits = data.habits || [];
         if (dbHabits.length > 0) {
@@ -213,6 +217,18 @@ export default function DisciplinePage() {
 
   useEffect(() => {
     fetchHabits(selectedDate);
+
+    const handleHabitRefresh = () => {
+      fetchHabits(selectedDate);
+    };
+
+    window.addEventListener("life_os_habit_updated", handleHabitRefresh);
+    window.addEventListener("life_os_task_updated", handleHabitRefresh);
+
+    return () => {
+      window.removeEventListener("life_os_habit_updated", handleHabitRefresh);
+      window.removeEventListener("life_os_task_updated", handleHabitRefresh);
+    };
   }, [selectedDate]);
 
   // Toggle habit status
@@ -257,6 +273,12 @@ export default function DisciplinePage() {
           completed: nextCompleted,
         }),
       });
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("life_os_habit_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_task_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -412,7 +434,7 @@ export default function DisciplinePage() {
                   {stats.weeklyAverage}%
                 </span>
                 <span className="text-[11px] font-bold text-[#165B33] flex items-center">
-                  +8% ↑
+                  {stats.weeklyAverage > 0 ? "+Active" : "Baseline"}
                 </span>
               </div>
               <p className="text-[12px] text-[#5A6E63] font-medium mt-0.5">
@@ -590,15 +612,15 @@ export default function DisciplinePage() {
 
               {/* 7-Day Vertical Bar Chart */}
               <div className="pt-2 pb-1 flex items-end justify-between gap-2 h-44 border-b border-[#F0F4F1]">
-                {[
-                  { day: "Mon", percent: 85, hClass: "h-[85%]" },
-                  { day: "Tue", percent: 72, hClass: "h-[72%]" },
-                  { day: "Wed", percent: 90, hClass: "h-[90%]" },
-                  { day: "Thu", percent: 60, hClass: "h-[60%]" },
-                  { day: "Fri", percent: 100, hClass: "h-[100%]" },
-                  { day: "Sat", percent: 80, hClass: "h-[80%]" },
-                  { day: "Sun", percent: 55, hClass: "h-[55%]" },
-                ].map((col, idx) => (
+                {(weeklyOverview.length === 7 ? weeklyOverview : [
+                  { day: "Mon", percent: 0 },
+                  { day: "Tue", percent: 0 },
+                  { day: "Wed", percent: 0 },
+                  { day: "Thu", percent: 0 },
+                  { day: "Fri", percent: 0 },
+                  { day: "Sat", percent: 0 },
+                  { day: "Sun", percent: 0 },
+                ]).map((col, idx) => (
                   <div key={idx} className="flex-1 flex flex-col items-center justify-end h-full">
                     {/* Percentage Label on Top */}
                     <span className="text-[10.5px] font-bold text-[#165B33] mb-1 font-mono">
@@ -608,7 +630,8 @@ export default function DisciplinePage() {
                     {/* Bar */}
                     <div className="w-full max-w-[28px] bg-[#E8EEEA] rounded-t-lg h-32 flex items-end overflow-hidden">
                       <div
-                        className={`w-full bg-[#165B33] rounded-t-lg transition-all duration-700 ${col.hClass}`}
+                        style={{ height: `${col.percent}%` }}
+                        className="w-full bg-[#165B33] rounded-t-lg transition-all duration-700"
                       />
                     </div>
 
@@ -631,11 +654,11 @@ export default function DisciplinePage() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 size={16} className="text-[#165B33] flex-shrink-0" />
-                  <span>Longest streak: <strong>{stats.prayerCount} days</strong></span>
+                  <span>Prayer devotion: <strong>{stats.prayerCount} completed</strong></span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 size={16} className="text-[#165B33] flex-shrink-0" />
-                  <span>Consistency rate: <strong>{Math.max(stats.weeklyAverage, 80)}%</strong></span>
+                  <span>Consistency rate: <strong>{stats.weeklyAverage}%</strong></span>
                 </div>
               </div>
             </div>

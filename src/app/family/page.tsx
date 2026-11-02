@@ -266,14 +266,14 @@ export default function FamilyPage() {
                 </div>
               </div>
 
-              {/* Status indicator: green checkmark */}
-              <div className="w-6 h-6 rounded-full bg-[#10B981] flex items-center justify-center text-white flex-shrink-0">
-                <Check size={14} strokeWidth={3} />
+              {/* Status indicator: green checkmark if completed, otherwise neutral count */}
+              <div className={`w-6 h-6 rounded-full ${familyTimeDays >= familyTimeTarget && familyTimeTarget > 0 ? "bg-[#10B981] text-white" : "bg-[#F3F4F6] text-[#9CA3AF]"} flex items-center justify-center flex-shrink-0 text-xs font-bold`}>
+                {familyTimeDays >= familyTimeTarget && familyTimeTarget > 0 ? <Check size={14} strokeWidth={3} /> : familyTimeDays}
               </div>
             </div>
 
             <p className="text-[12px] text-[#6B7280] mt-3 mb-3">
-              Keep spending quality time with your family
+              {familyTimeDays > 0 ? "Keep spending quality time with your family" : "Daily schedule includes evening family block"}
             </p>
 
             {/* Progress bar */}
@@ -281,10 +281,12 @@ export default function FamilyPage() {
               <div className="flex-1 bg-[#E5E7EB] h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-[#165B33] h-full rounded-full transition-all duration-500"
-                  style={{ width: "100%" }}
+                  style={{ width: `${familyTimeTarget > 0 ? Math.min(100, Math.round((familyTimeDays / familyTimeTarget) * 100)) : 0}%` }}
                 />
               </div>
-              <span className="text-[12px] font-bold text-[#1B4332]">100%</span>
+              <span className="text-[12px] font-bold text-[#1B4332]">
+                {familyTimeTarget > 0 ? Math.min(100, Math.round((familyTimeDays / familyTimeTarget) * 100)) : 0}%
+              </span>
             </div>
           </div>
 

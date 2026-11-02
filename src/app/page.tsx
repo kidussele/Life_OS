@@ -514,7 +514,19 @@ export default function DashboardPage() {
   useEffect(() => {
     const handleUpdate = () => loadDashboardData();
     window.addEventListener("life_os_task_updated", handleUpdate);
-    return () => window.removeEventListener("life_os_task_updated", handleUpdate);
+    window.addEventListener("life_os_finance_updated", handleUpdate);
+    window.addEventListener("life_os_habit_updated", handleUpdate);
+    window.addEventListener("life_os_goal_updated", handleUpdate);
+    window.addEventListener("life_os_forex_updated", handleUpdate);
+    window.addEventListener("life_os_suku_updated", handleUpdate);
+    return () => {
+      window.removeEventListener("life_os_task_updated", handleUpdate);
+      window.removeEventListener("life_os_finance_updated", handleUpdate);
+      window.removeEventListener("life_os_habit_updated", handleUpdate);
+      window.removeEventListener("life_os_goal_updated", handleUpdate);
+      window.removeEventListener("life_os_forex_updated", handleUpdate);
+      window.removeEventListener("life_os_suku_updated", handleUpdate);
+    };
   }, [timeState.dateStr, timezone]);
 
   const toggleTask = async (id: string) => {
@@ -545,6 +557,7 @@ export default function DashboardPage() {
             completed_at: updatedItem.status === "completed" ? new Date().toISOString() : null,
           }),
         });
+        window.dispatchEvent(new CustomEvent("life_os_task_updated"));
         loadDashboardData();
       } catch (e) {
         console.warn("Could not sync task toggle to API:", e);
@@ -1577,10 +1590,10 @@ export default function DashboardPage() {
                         pBg: "bg-[#FEE8E8] text-[#D93838] border border-red-200",
                       },
                       {
-                        title: "Emergency reserve (90,000 ETB)",
+                        title: "Initial Emergency Cushion (15,000 ETB)",
                         cat: "Financial",
-                        date: "Dec 31, 2026",
-                        remaining: "60 days left",
+                        date: "Nov 30, 2026",
+                        remaining: "28 days left",
                         priority: "Target",
                         pBg: "bg-[#E7F6ED] text-[#198754] border border-[#B7E4C7]",
                       },

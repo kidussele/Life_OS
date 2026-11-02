@@ -98,7 +98,7 @@ export default function LifeJourneyPage() {
     familySupport: 10000,
     actualSavings: 0, // Genuine balance from financial transactions
     plannedMonthlySavings: 3000,
-    totalExpenses: 15700,
+    totalExpenses: 0,
     workoutsCompleted: 0, // Target: 48 sessions
     workoutMinutes: 0,
     prayersCompleted: 0, // Target: 180 sessions (90 morning, 90 night)
@@ -155,6 +155,7 @@ export default function LifeJourneyPage() {
 
         // Compute actual numbers from database records strictly without fabricated fallbacks
         const actualSaved = Number(finData?.summary?.emergencyFund ?? 0);
+        const totalExpenses = Number(finData?.summary?.totalExpenses ?? 0);
         const prayersCount = Array.isArray(prayerData?.logs)
           ? prayerData.logs.filter((p: any) => p.completed === 1).length
           : 0;
@@ -177,6 +178,7 @@ export default function LifeJourneyPage() {
         setRealData((prev) => ({
           ...prev,
           actualSavings: actualSaved,
+          totalExpenses,
           prayersCompleted: prayersCount,
           prayerMinutes: prayersCount * 30,
           workoutsCompleted: workoutsCount,
@@ -193,6 +195,28 @@ export default function LifeJourneyPage() {
       }
     }
     fetchAllLiveData();
+
+    const handleJourneyRefresh = () => {
+      fetchAllLiveData();
+    };
+
+    window.addEventListener("life_os_finance_updated", handleJourneyRefresh);
+    window.addEventListener("life_os_forex_updated", handleJourneyRefresh);
+    window.addEventListener("life_os_goal_updated", handleJourneyRefresh);
+    window.addEventListener("life_os_task_updated", handleJourneyRefresh);
+    window.addEventListener("life_os_suku_updated", handleJourneyRefresh);
+    window.addEventListener("life_os_habit_updated", handleJourneyRefresh);
+    window.addEventListener("life_os_freelance_updated", handleJourneyRefresh);
+
+    return () => {
+      window.removeEventListener("life_os_finance_updated", handleJourneyRefresh);
+      window.removeEventListener("life_os_forex_updated", handleJourneyRefresh);
+      window.removeEventListener("life_os_goal_updated", handleJourneyRefresh);
+      window.removeEventListener("life_os_task_updated", handleJourneyRefresh);
+      window.removeEventListener("life_os_suku_updated", handleJourneyRefresh);
+      window.removeEventListener("life_os_habit_updated", handleJourneyRefresh);
+      window.removeEventListener("life_os_freelance_updated", handleJourneyRefresh);
+    };
   }, []);
 
   // ────────────────────────────────────────────────────────────────
@@ -205,9 +229,9 @@ export default function LifeJourneyPage() {
       icon: DollarSign,
       color: "text-emerald-700 bg-emerald-50 border-emerald-200",
       actual: `${realData.actualSavings.toLocaleString()} ETB`,
-      target: "9,000 ETB (90 Days)",
-      progress: Math.min(100, Math.round((realData.actualSavings / 9000) * 100)),
-      detail: `Nov Target: 3,000 ETB (Saved: ${realData.actualSavings.toLocaleString()} ETB) • Planned: 3,000 ETB/mo`,
+      target: "15,000 ETB (90 Days)",
+      progress: Math.min(100, Math.round((realData.actualSavings / 15000) * 100)),
+      detail: `Target: 15,000 ETB (Saved: ${realData.actualSavings.toLocaleString()} ETB) • Planned: 3,000 ETB/mo`,
     },
     fitness: {
       name: "Health & Fitness",
@@ -303,7 +327,7 @@ export default function LifeJourneyPage() {
       icon: Dumbbell,
       imageUrl: "/journey/foundation_planner.jpg",
       status: "in_progress",
-      progress: 45,
+      progress: Math.min(100, Math.round(((realData.workoutsCompleted > 0 ? 50 : 0) + (realData.prayersCompleted > 0 ? 50 : 0)))),
       decisionText: "Consistent Daily Routine?",
       yesCondition: "Daily schedule adherence ≥ 80% with morning prayer & workouts executed.",
       noCondition: "Adherence < 80% or multiple missed morning alarms.",
@@ -314,23 +338,23 @@ export default function LifeJourneyPage() {
           title: "Daily Schedule Adherence",
           metricLabel: "Time Blocks Executed",
           startValue: "0%",
-          currentActual: "85%",
+          currentActual: `${realData.workoutsCompleted > 0 || realData.prayersCompleted > 0 ? 50 : 0}%`,
           targetValue: "100%",
-          remaining: "15%",
+          remaining: `${realData.workoutsCompleted > 0 || realData.prayersCompleted > 0 ? 50 : 100}%`,
           unit: "%",
           deadline: "November 7, 2026",
-          progress: 85,
+          progress: realData.workoutsCompleted > 0 || realData.prayersCompleted > 0 ? 50 : 0,
         },
         {
           title: "Sleep Target & Recovery",
           metricLabel: "Nightly Sleep Hours",
-          startValue: "6.0h",
-          currentActual: "6.0h",
+          startValue: "0.0h",
+          currentActual: "0.0h",
           targetValue: "7.5h",
-          remaining: "1.5h deficit",
+          remaining: "7.5h target",
           unit: "hours",
           deadline: "November 7, 2026",
-          progress: 80,
+          progress: 0,
         },
       ],
       relatedTasks: [
@@ -407,7 +431,7 @@ export default function LifeJourneyPage() {
       icon: Laptop,
       imageUrl: "/journey/coding_mastery.jpg",
       status: "upcoming",
-      progress: 25,
+      progress: Math.round(((realData.softwareDevHours / 60) * 100 + (realData.projectsCompleted / 2) * 100) / 2),
       decisionText: "Skills & Projects Demonstrated?",
       yesCondition: "2 portfolio projects tested AND 60 learning hours documented.",
       noCondition: "Projects incomplete or lacking measurable depth.",
@@ -464,7 +488,7 @@ export default function LifeJourneyPage() {
       icon: Briefcase,
       imageUrl: "/journey/freelance_portfolio.jpg",
       status: "upcoming",
-      progress: 15,
+      progress: Math.min(100, Math.round((realData.freelanceOutreachCount / 60) * 100)),
       decisionText: "First Paying Client Acquired?",
       yesCondition: "At least 1 paying client signed with actual received deposit.",
       noCondition: "0 paying clients recorded in database.",
@@ -486,12 +510,12 @@ export default function LifeJourneyPage() {
           title: "Service Packages Published",
           metricLabel: "Live Service Tiers",
           startValue: "0",
-          currentActual: "3",
+          currentActual: "0",
           targetValue: "3",
-          remaining: "0",
+          remaining: "3",
           unit: "packages",
           deadline: "December 31, 2026",
-          progress: 100,
+          progress: 0,
         },
         {
           title: "First Paying Client",
@@ -522,7 +546,7 @@ export default function LifeJourneyPage() {
       icon: Store,
       imageUrl: "/journey/suku_mvp.jpg",
       status: "upcoming",
-      progress: 22,
+      progress: Math.min(100, Math.round((realData.sukuModulesTested / realData.sukuModulesTotal) * 100)),
       decisionText: "Suku MVP Readiness Checklist Ready?",
       yesCondition: "All core buyer/seller/checkout modules tested with 0 critical bugs.",
       noCondition: "Checkout or merchant auth issues remain unresolved.",
@@ -545,12 +569,12 @@ export default function LifeJourneyPage() {
           title: "Pilot Merchant Roster",
           metricLabel: "Qualified Addis Merchants",
           startValue: "0",
-          currentActual: "2",
+          currentActual: "0",
           targetValue: "5",
-          remaining: "3",
+          remaining: "5",
           unit: "merchants",
           deadline: "January 10, 2027",
-          progress: 40,
+          progress: 0,
         },
       ],
       relatedTasks: [
@@ -569,7 +593,7 @@ export default function LifeJourneyPage() {
       icon: CandlestickChart,
       imageUrl: "/journey/forex_trading.jpg",
       status: "upcoming",
-      progress: 10,
+      progress: Math.min(100, Math.round((realData.forexBacktestTrades / 100) * 100)),
       decisionText: "100 Trades Backtested & Edge Proven?",
       yesCondition: "100 documented historical trades on EURUSD/GBPUSD with positive expectancy.",
       noCondition: "Trade journal < 100 trades or rules broken.",
@@ -592,23 +616,23 @@ export default function LifeJourneyPage() {
           title: "Win Rate & R:R Expectancy",
           metricLabel: "ICT Strategy Edge",
           startValue: "0%",
-          currentActual: `${realData.forexWinRate}% (4.3R)`,
+          currentActual: realData.forexBacktestTrades > 0 ? `${realData.forexWinRate}% (${realData.forexTotalR}R)` : "0% (0.0R)",
           targetValue: "50%+ (>2R)",
-          remaining: "Edge Validated",
+          remaining: realData.forexBacktestTrades > 0 ? "Tracking" : "0 / 100 trades",
           unit: "winrate",
           deadline: "January 15, 2027",
-          progress: 100,
+          progress: realData.forexBacktestTrades >= 100 ? (realData.forexWinRate >= 50 ? 100 : 50) : Math.min(100, Math.round((realData.forexBacktestTrades / 100) * 100)),
         },
         {
           title: "90-Day Emergency Reserve",
           metricLabel: "Total Cumulative Savings",
           startValue: "0 ETB",
           currentActual: `${realData.actualSavings.toLocaleString()} ETB`,
-          targetValue: "9,000 ETB",
-          remaining: `${Math.max(0, 9000 - realData.actualSavings).toLocaleString()} ETB`,
+          targetValue: "15,000 ETB",
+          remaining: `${Math.max(0, 15000 - realData.actualSavings).toLocaleString()} ETB`,
           unit: "ETB",
           deadline: "January 15, 2027",
-          progress: Math.min(100, Math.round((realData.actualSavings / 9000) * 100)),
+          progress: Math.min(100, Math.round((realData.actualSavings / 15000) * 100)),
         },
       ],
       relatedTasks: [
@@ -638,12 +662,12 @@ export default function LifeJourneyPage() {
           title: "Life Category Reviews",
           metricLabel: "Evaluated Areas",
           startValue: "0 / 9",
-          currentActual: "9 / 9",
+          currentActual: "0 / 9",
           targetValue: "9 / 9",
-          remaining: "0",
+          remaining: "9",
           unit: "categories",
           deadline: "January 29, 2027",
-          progress: 100,
+          progress: 0,
         },
         {
           title: "Weekly Personal Reflections",
@@ -659,13 +683,13 @@ export default function LifeJourneyPage() {
         {
           title: "Family Balance & Contribution",
           metricLabel: "Monthly Family Support",
-          startValue: "10,000 ETB",
-          currentActual: "10,000 ETB",
+          startValue: "0 ETB",
+          currentActual: "0 ETB",
           targetValue: "10,000 ETB",
-          remaining: "0 ETB",
+          remaining: "10,000 ETB",
           unit: "ETB/mo",
           deadline: "January 29, 2027",
-          progress: 100,
+          progress: 0,
         },
       ],
       relatedTasks: [
@@ -829,7 +853,7 @@ export default function LifeJourneyPage() {
               </div>
               <div>
                 <div className="text-xl font-extrabold text-[#14211A] leading-tight font-mono">
-                  {realData.actualSavings.toLocaleString()} / 9,000 ETB
+                  {realData.actualSavings.toLocaleString()} / 15,000 ETB
                 </div>
                 <div className="text-[11.5px] text-[#6C8176] font-medium leading-tight">
                   Emergency Savings Goal
@@ -1696,15 +1720,15 @@ export default function LifeJourneyPage() {
                       Target: 60 • Completed: {realData.prayersCompleted}
                     </strong>
                   </div>
-                  {/* Visual Savings Stepper: 0 -> 3k -> 6k -> 9k */}
+                  {/* Visual Savings Stepper: 0 -> 5k -> 10k -> 15k */}
                   <div className="text-[9.5px] font-bold text-[#2D4A39] border-t border-[#E2E9E4] pt-1 flex items-center justify-between font-mono">
                     <span className="text-[#165B33]">0 ETB</span>
                     <span>→</span>
-                    <span className="text-[#165B33] font-extrabold bg-[#EBF5EE] px-1 rounded">3,000 ETB</span>
+                    <span className="text-[#165B33] font-extrabold bg-[#EBF5EE] px-1 rounded">5,000 ETB</span>
                     <span>→</span>
-                    <span className="text-[#6C8176]">6,000</span>
+                    <span className="text-[#6C8176]">10,000</span>
                     <span>→</span>
-                    <span className="text-[#6C8176]">9,000 ETB</span>
+                    <span className="text-[#6C8176]">15,000 ETB</span>
                   </div>
                 </div>
               </div>
@@ -2103,7 +2127,7 @@ export default function LifeJourneyPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-[#6C8176]">90-Day Emergency Fund:</span>
                     <strong className="text-[#14211A] font-mono">
-                      Target: 9,000 ETB • Actual: {realData.actualSavings.toLocaleString()} ETB
+                      Target: 15,000 ETB • Actual: {realData.actualSavings.toLocaleString()} ETB
                     </strong>
                   </div>
                   <div className="text-[10px] text-[#6C8176] border-t border-[#E2E9E4] pt-1">

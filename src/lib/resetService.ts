@@ -1,16 +1,242 @@
 import { db, initDatabase } from "./db";
-import { getScheduleBlocks, getEveningRotationForDate } from "./repository";
+import { getEveningRotationForDate } from "./repository";
+import fs from "fs";
+import path from "path";
 
 export interface DatabaseBackup {
   backup_version: string;
   created_at: string;
   source_database: string;
   user_id: string;
+  backup_file_path?: string;
   tables: Record<string, any[]>;
+  summary: Record<string, number>;
 }
 
 /**
- * Safely export full database content to a JSON backup structure
+ * Canonical 9-Goal Hierarchy for the 90-Day Plan starting Monday, November 2, 2026.
+ * All starting values 0, current value 0, progress 0%, status 'in_progress'.
+ */
+export const CANONICAL_9_GOALS = [
+  {
+    id: "goal_vision_fin",
+    title: "Achieve Complete Financial Independence",
+    description: "Reach 150,000+ ETB monthly recurring income across software development, Suku marketplace, and freelancing, while maintaining emergency savings and supporting family.",
+    category: "financial",
+    reason: "Build long-term security, eliminate money stress, provide abundantly for my family, and gain sovereign control of my time.",
+    tier: "vision",
+    parent_goal_id: null,
+    start_date: "2026-11-02",
+    deadline: "2027-12-31",
+    priority: "high",
+    target_value: 150000,
+    current_value: 0,
+    unit: "ETB/mo",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "Sustainable net cashflow of 150,000 ETB/mo with 6 months emergency savings (180,000 ETB).",
+  },
+  {
+    id: "goal_monthly_savings",
+    title: "Establish Initial 15,000 ETB Emergency Fund",
+    description: "Disciplined allocation of salary and freelance proceeds to build an untouchable emergency cushion.",
+    category: "financial",
+    reason: "Break the cycle of zero savings and establish financial peace of mind.",
+    tier: "monthly",
+    parent_goal_id: "goal_vision_fin",
+    start_date: "2026-11-02",
+    deadline: "2026-11-30",
+    priority: "high",
+    target_value: 15000,
+    current_value: 0,
+    unit: "ETB",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "15,000 ETB verified balance in designated emergency savings account.",
+  },
+  {
+    id: "goal_90d_freelance",
+    title: "Land First 3 High-Value Software Clients",
+    description: "Package full-stack Next.js/React development services, build live portfolio with case studies, and secure 3 paid clients.",
+    category: "freelancing",
+    reason: "Generate immediate supplementary income beyond the 30,000 ETB salary.",
+    tier: "90_day",
+    parent_goal_id: "goal_vision_fin",
+    start_date: "2026-11-02",
+    deadline: "2026-12-31",
+    priority: "high",
+    target_value: 3,
+    current_value: 0,
+    unit: "clients",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "Sign contracts for 3 freelance projects totaling at least 90,000 ETB in client revenue.",
+  },
+  {
+    id: "goal_90d_suku",
+    title: "Launch Suku Ethiopian Marketplace MVP",
+    description: "Complete vendor onboarding, product listing catalogue, secure checkout flow, and initial Addis Ababa merchant pilot.",
+    category: "business",
+    reason: "Create an enduring digital commerce platform for local Ethiopian merchants and customers.",
+    tier: "90_day",
+    parent_goal_id: "goal_vision_fin",
+    start_date: "2026-11-02",
+    deadline: "2027-01-15",
+    priority: "high",
+    target_value: 11,
+    current_value: 0,
+    unit: "stages",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "Production deployment with 20 active merchants, 100 listed products, and zero critical security flaws.",
+  },
+  {
+    id: "goal_90d_forex",
+    title: "Master ICT Methodology & Complete 100 Demo Backtests",
+    description: "Backtest MSS, Order Blocks, and Silver Bullet on EURUSD & GBPUSD with strict 1:2+ R:R, logging all trades without risking real capital.",
+    category: "forex",
+    reason: "Build proven psychological discipline and mechanical consistency before risking real money or taking prop challenges.",
+    tier: "90_day",
+    parent_goal_id: "goal_vision_fin",
+    start_date: "2026-11-02",
+    deadline: "2026-12-31",
+    priority: "medium",
+    target_value: 100,
+    current_value: 0,
+    unit: "trades",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "100 logged backtest/demo trades with positive expectancy, maximum 3% drawdown, and 100% adherence to risk rules.",
+  },
+  {
+    id: "goal_90d_spiritual",
+    title: "30-Day Unbroken Morning & Night Prayer Consistency",
+    description: "Protect 04:00 AM morning prayer and 21:15 PM night prayer as sacred, non-negotiable appointments.",
+    category: "spiritual",
+    reason: "Spiritual groundedness and gratitude are the bedrock of my peace, discipline, and purpose in life.",
+    tier: "90_day",
+    parent_goal_id: null,
+    start_date: "2026-11-02",
+    deadline: "2026-12-31",
+    priority: "high",
+    target_value: 60,
+    current_value: 0,
+    unit: "sessions",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "Complete both 30-min prayer sessions 60 days consecutively with recorded reflections.",
+  },
+  {
+    id: "goal_90d_health",
+    title: "48 Morning Workouts & Physical Recovery Routine",
+    description: "Execute 48 morning bodyweight workouts, mobility exercises, and protect 7.5 hours recovery window.",
+    category: "health",
+    reason: "Physical vitality and sustained stamina drive daily cognitive execution.",
+    tier: "90_day",
+    parent_goal_id: null,
+    start_date: "2026-11-02",
+    deadline: "2026-12-31",
+    priority: "high",
+    target_value: 48,
+    current_value: 0,
+    unit: "workouts",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "Log 48 completed home workout sessions with consistent morning schedule.",
+  },
+  {
+    id: "goal_90d_learning",
+    title: "Master Full-Stack Next.js Architecture & English Fluency",
+    description: "Dedicate 60 hours to React 19/Next.js 15 server architecture and daily technical English speaking.",
+    category: "learning",
+    reason: "World-class engineering craftsmanship enables global remote contracts and high-impact software.",
+    tier: "90_day",
+    parent_goal_id: null,
+    start_date: "2026-11-02",
+    deadline: "2026-12-31",
+    priority: "high",
+    target_value: 60,
+    current_value: 0,
+    unit: "hours",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "Complete 60 hours of focused study modules and 60 mastered technical vocab phrases.",
+  },
+  {
+    id: "goal_90d_family",
+    title: "Protected Family Dinner & 12 Weekly Reviews",
+    description: "Preserve screen-free evening family dinner daily and conduct 12 structured Sunday family & life reviews.",
+    category: "family",
+    reason: "Honor family duty, maintain deep relationships, and ensure complete life alignment.",
+    tier: "90_day",
+    parent_goal_id: null,
+    start_date: "2026-11-02",
+    deadline: "2027-01-24",
+    priority: "high",
+    target_value: 12,
+    current_value: 0,
+    unit: "reviews",
+    progress: 0,
+    status: "in_progress",
+    completion_criteria: "12 completed Sunday life reviews and unbroken daily evening presence with family.",
+  },
+];
+
+/**
+ * Measurable Milestones for the 9 Canonical Goals (All status: 'pending')
+ */
+export const CANONICAL_MILESTONES = [
+  // 1. Spiritual
+  { id: "m_spir_1", goal_id: "goal_90d_spiritual", title: "7 Days Unbroken Morning & Night Prayer Devotion", date: "2026-11-09", status: "pending", sort: 1 },
+  { id: "m_spir_2", goal_id: "goal_90d_spiritual", title: "14 Days Spiritual Consistency & Journaled Reflections", date: "2026-11-16", status: "pending", sort: 2 },
+  { id: "m_spir_3", goal_id: "goal_90d_spiritual", title: "30 Days Unbroken Spiritual Grounding", date: "2026-12-02", status: "pending", sort: 3 },
+
+  // 2. Health
+  { id: "m_hlth_1", goal_id: "goal_90d_health", title: "First 12 Morning Calisthenics & Mobility Sessions", date: "2026-11-15", status: "pending", sort: 1 },
+  { id: "m_hlth_2", goal_id: "goal_90d_health", title: "24 Completed Workouts & Sleep Target Adherence", date: "2026-11-30", status: "pending", sort: 2 },
+  { id: "m_hlth_3", goal_id: "goal_90d_health", title: "48 Completed Workouts with Enhanced Energy Rating", date: "2026-12-31", status: "pending", sort: 3 },
+
+  // 3. Learning
+  { id: "m_learn_1", goal_id: "goal_90d_learning", title: "Master Next.js 15 Server Components & Action Caching", date: "2026-11-15", status: "pending", sort: 1 },
+  { id: "m_learn_2", goal_id: "goal_90d_learning", title: "30 Technical English Vocab Words & Speaking Shadowing", date: "2026-11-30", status: "pending", sort: 2 },
+  { id: "m_learn_3", goal_id: "goal_90d_learning", title: "Complete 60 Hours Professional Architecture Study", date: "2026-12-31", status: "pending", sort: 3 },
+
+  // 4. Vision Financial
+  { id: "m_vis_1", goal_id: "goal_vision_fin", title: "Build 15,000 ETB Initial Emergency Cushion", date: "2026-11-30", status: "pending", sort: 1 },
+  { id: "m_vis_2", goal_id: "goal_vision_fin", title: "First 50,000 ETB Monthly Combined Income", date: "2027-01-31", status: "pending", sort: 2 },
+  { id: "m_vis_3", goal_id: "goal_vision_fin", title: "Scaled 150,000 ETB Monthly Recurring Net Cashflow", date: "2027-12-31", status: "pending", sort: 3 },
+
+  // 5. Freelancing
+  { id: "m_free_1", goal_id: "goal_90d_freelance", title: "Complete Personal Portfolio Site with 3 Case Studies", date: "2026-11-07", status: "pending", sort: 1 },
+  { id: "m_free_2", goal_id: "goal_90d_freelance", title: "Outreach to 15 Local Businesses Needing Web Upgrades", date: "2026-11-14", status: "pending", sort: 2 },
+  { id: "m_free_3", goal_id: "goal_90d_freelance", title: "Send 5 Proposals & Close 1st Client", date: "2026-11-21", status: "pending", sort: 3 },
+  { id: "m_free_4", goal_id: "goal_90d_freelance", title: "Secure 3 Paid Client Engagements (90,000 ETB Revenue)", date: "2026-12-31", status: "pending", sort: 4 },
+
+  // 6. Suku
+  { id: "m_suku_1", goal_id: "goal_90d_suku", title: "Vendor Storefront UI & Responsive Grid", date: "2026-11-08", status: "pending", sort: 1 },
+  { id: "m_suku_2", goal_id: "goal_90d_suku", title: "Cart & Checkout Order API Integration", date: "2026-11-18", status: "pending", sort: 2 },
+  { id: "m_suku_3", goal_id: "goal_90d_suku", title: "Merchant Dashboard & Product Management", date: "2026-11-28", status: "pending", sort: 3 },
+  { id: "m_suku_4", goal_id: "goal_90d_suku", title: "Security Audit & Telebirr/Chapa Gateway", date: "2026-12-12", status: "pending", sort: 4 },
+  { id: "m_suku_5", goal_id: "goal_90d_suku", title: "Addis Ababa Pilot Launch with 20 Active Merchants", date: "2026-12-31", status: "pending", sort: 5 },
+
+  // 7. Forex
+  { id: "m_fx_1", goal_id: "goal_90d_forex", title: "Complete 30 London Silver Bullet Backtests", date: "2026-11-15", status: "pending", sort: 1 },
+  { id: "m_fx_2", goal_id: "goal_90d_forex", title: "Complete 30 NY Session Order Block & MSS Setups", date: "2026-12-05", status: "pending", sort: 2 },
+  { id: "m_fx_3", goal_id: "goal_90d_forex", title: "Log 40 Final Backtest Trades with Strict 1:2+ RR & Risk Rules", date: "2026-12-31", status: "pending", sort: 3 },
+
+  // 8. Savings
+  { id: "m_sav_1", goal_id: "goal_monthly_savings", title: "First 5,000 ETB Emergency Allocation", date: "2026-11-10", status: "pending", sort: 1 },
+  { id: "m_sav_2", goal_id: "goal_monthly_savings", title: "10,000 ETB Halfway Milestone", date: "2026-11-20", status: "pending", sort: 2 },
+  { id: "m_sav_3", goal_id: "goal_monthly_savings", title: "15,000 ETB Verified Untouchable Cushion", date: "2026-11-30", status: "pending", sort: 3 },
+
+  // 9. Family
+  { id: "m_fam_1", goal_id: "goal_90d_family", title: "4 Consecutive Protected Sunday Family Reviews", date: "2026-11-29", status: "pending", sort: 1 },
+  { id: "m_fam_2", goal_id: "goal_90d_family", title: "8 Weekly Family Reviews & Consistent Evening Dinner Presence", date: "2026-12-27", status: "pending", sort: 2 },
+  { id: "m_fam_3", goal_id: "goal_90d_family", title: "12 Weekly Family Reviews & Financial Support Alignment", date: "2027-01-24", status: "pending", sort: 3 },
+];
+
+/**
+ * Safely export full database content to a verified JSON backup file on disk
  */
 export async function exportDatabaseBackup(userId = "user_kidus_01"): Promise<DatabaseBackup> {
   await initDatabase();
@@ -46,37 +272,59 @@ export async function exportDatabaseBackup(userId = "user_kidus_01"): Promise<Da
   ];
 
   const tables: Record<string, any[]> = {};
+  const summary: Record<string, number> = {};
 
   for (const table of tableNames) {
     try {
       const res = await db.execute(`SELECT * FROM ${table}`);
       tables[table] = res.rows || [];
+      summary[table] = (res.rows || []).length;
     } catch (e) {
       console.warn(`Backup: could not export table ${table}`, e);
       tables[table] = [];
+      summary[table] = 0;
     }
   }
 
-  return {
-    backup_version: "2.0.0",
+  const backupData: DatabaseBackup = {
+    backup_version: "2.1.0",
     created_at: new Date().toISOString(),
     source_database: "life_os.db",
     user_id: userId,
     tables,
+    summary,
   };
+
+  // Write physical backup file to disk in project backups/ directory
+  try {
+    const backupDir = path.resolve(process.cwd(), "backups");
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupFilePath = path.join(backupDir, `life_os_backup_${timestamp}.json`);
+    fs.writeFileSync(backupFilePath, JSON.stringify(backupData, null, 2), "utf8");
+    backupData.backup_file_path = backupFilePath;
+  } catch (fsErr) {
+    console.warn("Could not write physical backup file:", fsErr);
+  }
+
+  return backupData;
 }
 
 /**
  * Execute Safe, Transactional Clean Data Reset
  *
  * Requirements:
- * 1. Safe transactional operation.
- * 2. Delete operational data: tasks, schedules, transactions, forex trades, suku tasks, health/family logs, etc.
- * 3. Preserve source code, tables/schemas, user account/profile, settings, life categories, page relationships.
+ * 1. Safe verified database backup written to disk before any deletion.
+ * 2. Delete operational data: tasks, logs, transactions, trades, focus sessions, quick capture items.
+ * 3. Preserve user profile, auth credentials, system settings, timezone, schema, architecture.
  * 4. Start date: Monday, November 2, 2026.
- * 5. Initialize task completion 0%, discipline history empty, forex trades empty, financial transactions empty, savings 0.
- * 6. Regenerate master weekday and weekend schedule protecting employment, commute, sleep, prayers, family.
- * 7. Generate Day 1 tasks for November 2, 2026.
+ * 5. Reinitialize 9 canonical goals with starting value 0, current value 0, progress 0%.
+ * 6. Reinitialize clean pending milestones across all 9 life categories.
+ * 7. Regenerate master weekday and weekend schedule blocks (all 19 weekday blocks).
+ * 8. Generate Day 1 tasks for November 2, 2026 (all status 'upcoming', 0% completed).
+ * 9. Reinitialize fresh Suku backlog (all 11 stages with status 'backlog').
  */
 export async function executeCleanDataReset(options: {
   confirmation: string;
@@ -91,8 +339,10 @@ export async function executeCleanDataReset(options: {
   const userId = options.userId || "user_kidus_01";
   const userTz = options.timezone || "Africa/Addis_Ababa";
 
-  // Run cleanup transaction
-  // 1. Delete Operational Logs and Histories
+  // Step 1: Pre-reset verified backup
+  const backup = await exportDatabaseBackup(userId);
+
+  // Step 2: Delete Operational Logs and Histories (User-Scoped)
   const operationalTables = [
     "daily_tasks",
     "prayer_logs",
@@ -113,47 +363,95 @@ export async function executeCleanDataReset(options: {
     "quick_capture_items",
   ];
 
+  const deletedCounts: Record<string, number> = {};
+
   for (const table of operationalTables) {
     try {
+      const countRes = await db.execute({
+        sql: `SELECT COUNT(*) as c FROM ${table} WHERE user_id = ?`,
+        args: [userId],
+      });
+      deletedCounts[table] = Number(countRes.rows[0]?.c || 0);
+
       await db.execute({
         sql: `DELETE FROM ${table} WHERE user_id = ?`,
         args: [userId],
       });
     } catch (_) {
-      // If table has no user_id column (e.g. habit_logs joins to habits), delete safely
       try {
+        const countRes = await db.execute(`SELECT COUNT(*) as c FROM ${table}`);
+        deletedCounts[table] = Number(countRes.rows[0]?.c || 0);
         await db.execute(`DELETE FROM ${table}`);
       } catch (err) {
         console.warn(`Reset warning on table ${table}:`, err);
+        deletedCounts[table] = 0;
       }
     }
   }
 
-  // 2. Reset Goals Progress and Milestones
-  // Reset all goals to 0% progress, status 'in_progress', start date '2026-11-02'
-  await db.execute({
-    sql: `UPDATE goals SET
-      progress = 0,
-      status = 'in_progress',
-      start_date = '2026-11-02'
-      WHERE user_id = ?`,
-    args: [userId],
-  });
+  // Step 3: Reset Goals Hierarchy & Milestones (9 Canonical Life Categories)
+  // Delete existing user milestones and goals
+  try {
+    await db.execute({
+      sql: `DELETE FROM milestones WHERE goal_id IN (SELECT id FROM goals WHERE user_id = ?)`,
+      args: [userId],
+    });
+    await db.execute({
+      sql: `DELETE FROM goals WHERE user_id = ?`,
+      args: [userId],
+    });
+  } catch (err) {
+    console.warn("Could not delete old goals/milestones:", err);
+  }
 
-  // Reset all milestones to 'pending'
-  await db.execute({
-    sql: `UPDATE milestones SET status = 'pending' WHERE goal_id IN (SELECT id FROM goals WHERE user_id = ?)`,
-    args: [userId],
-  });
+  // Insert the canonical 9 goals with 0 progress, start date 2026-11-02
+  for (const g of CANONICAL_9_GOALS) {
+    await db.execute({
+      sql: `INSERT INTO goals (
+        id, user_id, title, description, category, reason, tier,
+        parent_goal_id, start_date, deadline, priority, progress,
+        target_value, current_value, unit, currency, status, completion_criteria
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        g.id,
+        userId,
+        g.title,
+        g.description,
+        g.category,
+        g.reason,
+        g.tier,
+        g.parent_goal_id,
+        g.start_date,
+        g.deadline,
+        g.priority,
+        g.progress,
+        g.target_value,
+        g.current_value,
+        g.unit,
+        "ETB",
+        g.status,
+        g.completion_criteria,
+      ],
+    });
+  }
 
-  // 3. Reset Journey Profile and Milestones
+  // Insert canonical milestones (all status: 'pending')
+  for (const m of CANONICAL_MILESTONES) {
+    await db.execute({
+      sql: `INSERT INTO milestones (id, goal_id, title, target_date, status, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [m.id, m.goal_id, m.title, m.date, m.status, m.sort],
+    });
+  }
+
+  // Step 4: Reset Journey Profile and Journey Milestones
   await db.execute({
     sql: `UPDATE journey_profile SET
       current_savings = 0,
       freelance_status = 'Fresh client outreach pipeline initialized',
       suku_status = 'MVP architecture & product backlog initialized',
-      forex_status = 'ICT mechanical backtest journal ready',
-      discipline_status = 'Day 0: Starting unbroken morning/evening routines Nov 2',
+      forex_status = '0 / 100 ICT mechanical backtest trades logged',
+      discipline_status = 'Day 1: Starting unbroken morning/evening routines Nov 2',
       updated_at = datetime('now')
       WHERE user_id = ?`,
     args: [userId],
@@ -164,11 +462,11 @@ export async function executeCleanDataReset(options: {
       progress = 0,
       status = 'upcoming',
       completed_date = null
-      WHERE user_id = ?`,
+      WHERE user_id = ? AND phase = 'active'`,
     args: [userId],
   });
 
-  // 4. Update User Settings with Timezone & Reset Flag
+  // Step 5: Update User Settings with Timezone & Reset Flag
   await db.execute({
     sql: `UPDATE users SET
       timezone = ?,
@@ -179,14 +477,13 @@ export async function executeCleanDataReset(options: {
     args: [userTz, userId],
   });
 
-  // 5. Regenerate Master Schedule Blocks
-  // Clear existing schedule blocks
+  // Step 6: Regenerate Master Schedule Blocks
   await db.execute({
     sql: "DELETE FROM schedule_blocks WHERE user_id = ?",
     args: [userId],
   });
 
-  // Weekday Master Schedule (Balanced, protecting 08:00 - 17:00 employment, commute, sleep, prayers, family)
+  // Master Weekday Blocks (19 Canonical Blocks protecting 08:00 - 17:00 employment, commute, sleep, prayers, family)
   const masterWeekdayBlocks = [
     { start: "04:00", end: "04:30", dur: 30, title: "Morning Prayer", cat: "spiritual", prot: 1, scr: 0, desc: "Gratitude, spiritual reflection, and day preparation. Non-negotiable anchor." },
     { start: "04:30", end: "05:00", dur: 30, title: "Exercise & Mobility", cat: "health", prot: 0, scr: 0, desc: "Home workout, mobility, stretching, and physical readiness." },
@@ -272,8 +569,8 @@ export async function executeCleanDataReset(options: {
     });
   }
 
-  // 6. Pre-generate Day 1 Daily Tasks for Monday, November 2, 2026
-  // Day 1 begins at 00:00 local time on Nov 2.
+  // Step 7: Pre-generate Clean Day 1 Daily Tasks for Monday, November 2, 2026
+  // Day 1 begins at 00:00 local time on Nov 2, all tasks 'upcoming' (0% completed)
   const day1Date = "2026-11-02";
   const eveningFocus = getEveningRotationForDate(day1Date);
 
@@ -293,6 +590,12 @@ export async function executeCleanDataReset(options: {
 
     if (b.title.includes("Morning Prayer") || b.title.includes("Night Prayer")) {
       goalId = "goal_90d_spiritual";
+    } else if (b.title.includes("Exercise") || b.title.includes("Workout")) {
+      goalId = "goal_90d_health";
+    } else if (b.title.includes("Learning")) {
+      goalId = "goal_90d_learning";
+    } else if (b.title.includes("Family")) {
+      goalId = "goal_90d_family";
     }
 
     const taskId = `task_${day1Date}_${i + 1}`;
@@ -318,7 +621,7 @@ export async function executeCleanDataReset(options: {
     });
   }
 
-  // 7. Initialize Fresh Suku Task Plan (11 Stages in Backlog for the 90-day plan)
+  // Step 8: Initialize Fresh Suku Task Backlog (All 11 Stages in 'backlog')
   const freshSukuTasks = [
     { id: "suku_1", area: "product", title: "Product Category Schema Definition", desc: "Define hierarchical taxonomy for local Ethiopian products and crafts", prio: "high", stat: "backlog", date: "2026-11-08", stage: 1 },
     { id: "suku_2", area: "ui_ux", title: "Mobile Navigation & Product Filter Sheet", desc: "Design lightweight filtering for low-bandwidth mobile connections", prio: "high", stat: "backlog", date: "2026-11-12", stage: 2 },
@@ -347,8 +650,12 @@ export async function executeCleanDataReset(options: {
     details: {
       startDate: day1Date,
       timezone: userTz,
+      backupFilePath: backup.backup_file_path || "in-memory",
+      goalsInitialized: CANONICAL_9_GOALS.length,
+      milestonesInitialized: CANONICAL_MILESTONES.length,
       day1TasksCount: masterWeekdayBlocks.length,
       sukuTasksCount: freshSukuTasks.length,
+      deletedRecordsSummary: deletedCounts,
       completionRate: 0,
     },
   };
@@ -436,4 +743,3 @@ export async function importDatabaseBackup(
     restoredTables,
   };
 }
-

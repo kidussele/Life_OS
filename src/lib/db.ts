@@ -2,11 +2,12 @@ import { createClient } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 
-// Database file path in project root
-const dbPath = path.resolve(process.cwd(), "life_os.db");
+const url = process.env.TURSO_DATABASE_URL || `file:${path.resolve(process.cwd(), "life_os.db")}`;
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
 export const db = createClient({
-  url: `file:${dbPath}`,
+  url,
+  authToken,
 });
 
 let isInitialized = false;

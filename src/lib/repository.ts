@@ -448,6 +448,20 @@ export async function savePrayerLog(log: Omit<PrayerLog, "id">): Promise<void> {
       log.spiritual_focus || null,
     ],
   });
+
+  // Cross-system sync: update goal_90d_spiritual progress
+  try {
+    const pRes = await db.execute({
+      sql: "SELECT COUNT(*) as done FROM prayer_logs WHERE user_id = ? AND completed = 1 AND date >= '2026-11-02'",
+      args: [log.user_id],
+    });
+    const donePrayers = Number(pRes.rows[0]?.done || 0);
+    const pProgress = Math.min(100, Math.round((donePrayers / 60) * 100));
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_spiritual' OR category = 'spiritual')",
+      args: [donePrayers, pProgress, pProgress, log.user_id],
+    });
+  } catch (_) {}
 }
 
 // -------------------------------------------------------------
@@ -539,11 +553,7 @@ export async function createMilestone(m: Omit<Milestone, "id">): Promise<void> {
 }
 
 export async function toggleMilestone(milestoneId: string, status: "pending" | "completed"): Promise<void> {
-  await ensureReady();
-  await db.execute({
-    sql: "UPDATE milestones SET status = ? WHERE id = ?",
-    args: [status, milestoneId],
-  });
+  await updateMilestoneStatus(milestoneId, status);
 }
 
 // -------------------------------------------------------------
@@ -592,7 +602,8 @@ export async function getHabitsWithTodayStatus(
 export async function toggleHabitLog(
   habitId: string,
   dateStr: string,
-  completed: boolean
+  completed: boolean,
+  userId = "user_kidus_01"
 ): Promise<void> {
   await ensureReady();
   const id = `hl_${habitId}_${dateStr}`;
@@ -602,11 +613,101 @@ export async function toggleHabitLog(
           ON CONFLICT(habit_id, date) DO UPDATE SET completed = excluded.completed`,
     args: [id, habitId, dateStr, completed ? 1 : 0],
   });
+
+  // Cross-synchronize matching daily task on that date
+  const habitKeywords: Record<string, string> = {
+    h_m_prayer: "Morning Prayer",
+    h_n_prayer: "Night Prayer",
+    h_exercise: "Exercise",
+    h_english: "English",
+    h_prof_learn: "Professional",
+    h_work: "Employment",
+    h_dev_session: "Development Session",
+    h_family: "Family",
+    h_fin_track: "Planning",
+    h_sleep: "Sleep",
+  };
+
+  const kw = habitKeywords[habitId];
+  if (kw) {
+    await db.execute({
+      sql: `UPDATE daily_tasks SET status = ?, completed_at = ?
+            WHERE user_id = ? AND date = ? AND title LIKE ?`,
+      args: [
+        completed ? "completed" : "upcoming",
+        completed ? new Date().toISOString() : null,
+        userId,
+        dateStr,
+        `%${kw}%`,
+      ],
+    });
+  }
+
+  // Cross-synchronize prayer logs if prayer habit
+  if (habitId === "h_m_prayer") {
+    await savePrayerLog({
+      user_id: userId,
+      date: dateStr,
+      prayer_type: "morning",
+      scheduled_time: "04:00",
+      duration_minutes: 30,
+      completed: completed ? 1 : 0,
+      completed_at: completed ? new Date().toISOString() : null,
+    });
+  } else if (habitId === "h_n_prayer") {
+    await savePrayerLog({
+      user_id: userId,
+      date: dateStr,
+      prayer_type: "night",
+      scheduled_time: "21:15",
+      duration_minutes: 30,
+      completed: completed ? 1 : 0,
+      completed_at: completed ? new Date().toISOString() : null,
+    });
+  } else if (habitId === "h_exercise") {
+    await saveHealthLog({
+      user_id: userId,
+      date: dateStr,
+      workout_completed: completed ? 1 : 0,
+      workout_title: "Exercise & Mobility Routine",
+      workout_minutes: 30,
+    });
+  }
 }
 
 // -------------------------------------------------------------
 // FINANCIAL TRANSACTIONS & SUMMARY
 // -------------------------------------------------------------
+export async function syncFinancialGoalsAndJourney(userId = "user_kidus_01"): Promise<void> {
+  await ensureReady();
+  const summary = await getFinancialSummary(userId);
+  const emergencyFund = summary.emergencyFund;
+
+  // Single source of truth update for Emergency Fund Goal
+  const goalRes = await db.execute({
+    sql: "SELECT id, target_value FROM goals WHERE user_id = ? AND (id = 'goal_monthly_savings' OR id = 'goal_emergency_fund' OR title LIKE '%Emergency%') LIMIT 1",
+    args: [userId],
+  });
+
+  if (goalRes.rows.length > 0) {
+    const goal = goalRes.rows[0];
+    const target = Number(goal.target_value || 15000);
+    const progress = target > 0 ? Math.min(100, Math.round((emergencyFund / target) * 100)) : 0;
+    const status = progress >= 100 ? "completed" : "in_progress";
+
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, progress = ?, status = ? WHERE id = ?",
+      args: [emergencyFund, progress, status, goal.id],
+    });
+  }
+
+  // Journey Profile savings synchronization
+  await db.execute({
+    sql: "UPDATE journey_profile SET current_savings = ?, updated_at = datetime('now') WHERE user_id = ?",
+    args: [emergencyFund, userId],
+  });
+}
+
 export async function getFinancialTransactions(
   userId = "user_kidus_01"
 ): Promise<FinancialTransaction[]> {
@@ -638,6 +739,8 @@ export async function createFinancialTransaction(
       tx.bucket || "personal",
     ],
   });
+
+  await syncFinancialGoalsAndJourney(tx.user_id);
 }
 
 export async function getFinancialSummary(userId = "user_kidus_01") {
@@ -674,10 +777,18 @@ export async function getFinancialSummary(userId = "user_kidus_01") {
 
 export async function deleteFinancialTransaction(id: string): Promise<void> {
   await ensureReady();
+  const txRes = await db.execute({
+    sql: "SELECT user_id FROM financial_transactions WHERE id = ? LIMIT 1",
+    args: [id],
+  });
+  const userId = (txRes.rows[0]?.user_id as string) || "user_kidus_01";
+
   await db.execute({
     sql: "DELETE FROM financial_transactions WHERE id = ?",
     args: [id],
   });
+
+  await syncFinancialGoalsAndJourney(userId);
 }
 
 // -------------------------------------------------------------
@@ -799,14 +910,66 @@ export async function updateSukuTask(id: string, data: Partial<SukuTask>): Promi
     sql: `UPDATE suku_tasks SET ${fields.join(", ")} WHERE id = ?`,
     args,
   });
+
+  // Cross-system sync: update goal_90d_suku and journey profile
+  try {
+    const taskRes = await db.execute({
+      sql: "SELECT user_id, stage_id FROM suku_tasks WHERE id = ? LIMIT 1",
+      args: [id],
+    });
+    const userId = (taskRes.rows[0]?.user_id as string) || "user_kidus_01";
+    const statsRes = await db.execute({
+      sql: "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done FROM suku_tasks WHERE user_id = ?",
+      args: [userId],
+    });
+    const total = Number(statsRes.rows[0]?.total || 0);
+    const done = Number(statsRes.rows[0]?.done || 0);
+    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, target_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_suku' OR category = 'business')",
+      args: [done, total, progress, progress, userId],
+    });
+
+    await db.execute({
+      sql: "UPDATE journey_profile SET suku_status = ?, updated_at = datetime('now') WHERE user_id = ?",
+      args: [`${done}/${total} MVP stages completed`, userId],
+    });
+  } catch (_) {}
 }
 
 export async function deleteSukuTask(id: string): Promise<void> {
   await ensureReady();
+  const taskRes = await db.execute({
+    sql: "SELECT user_id FROM suku_tasks WHERE id = ? LIMIT 1",
+    args: [id],
+  });
+  const userId = (taskRes.rows[0]?.user_id as string) || "user_kidus_01";
+
   await db.execute({
     sql: "DELETE FROM suku_tasks WHERE id = ?",
     args: [id],
   });
+
+  try {
+    const statsRes = await db.execute({
+      sql: "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done FROM suku_tasks WHERE user_id = ?",
+      args: [userId],
+    });
+    const total = Number(statsRes.rows[0]?.total || 0);
+    const done = Number(statsRes.rows[0]?.done || 0);
+    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, target_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_suku' OR category = 'business')",
+      args: [done, total, progress, progress, userId],
+    });
+
+    await db.execute({
+      sql: "UPDATE journey_profile SET suku_status = ?, updated_at = datetime('now') WHERE user_id = ?",
+      args: [`${done}/${total} MVP stages completed`, userId],
+    });
+  } catch (_) {}
 }
 
 // -------------------------------------------------------------
@@ -856,6 +1019,28 @@ export async function getForexSummary(userId = "user_kidus_01") {
   };
 }
 
+export async function syncForexGoalAndJourney(userId = "user_kidus_01"): Promise<void> {
+  try {
+    const statsRes = await db.execute({
+      sql: "SELECT COUNT(*) as total, SUM(CASE WHEN outcome = 'win' THEN 1 ELSE 0 END) as wins, SUM(COALESCE(result_r, 0)) as total_r FROM forex_trades WHERE user_id = ? AND outcome != 'open'",
+      args: [userId],
+    });
+    const totalClosed = Number(statsRes.rows[0]?.total || 0);
+    const totalR = Number(statsRes.rows[0]?.total_r || 0);
+    const progress = Math.min(100, Math.round((totalClosed / 100) * 100));
+
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_forex' OR category = 'forex')",
+      args: [totalClosed, progress, progress, userId],
+    });
+
+    await db.execute({
+      sql: "UPDATE journey_profile SET forex_status = ?, updated_at = datetime('now') WHERE user_id = ?",
+      args: [`${totalClosed}/100 ICT backtest trades logged. Total R: ${totalR >= 0 ? '+' : ''}${totalR.toFixed(1)}R`, userId],
+    });
+  } catch (_) {}
+}
+
 export async function createForexTrade(trade: Partial<ForexTrade> & { user_id: string; pair: string; direction: any; entry_price: number; stop_loss: number; take_profit: number; date: string }): Promise<string> {
   await ensureReady();
   const id = trade.id || `fx_${Date.now()}`;
@@ -886,15 +1071,25 @@ export async function createForexTrade(trade: Partial<ForexTrade> & { user_id: s
       trade.date,
     ],
   });
+
+  await syncForexGoalAndJourney(trade.user_id);
   return id;
 }
 
 export async function deleteForexTrade(id: string): Promise<void> {
   await ensureReady();
+  const tRes = await db.execute({
+    sql: "SELECT user_id FROM forex_trades WHERE id = ? LIMIT 1",
+    args: [id],
+  });
+  const userId = (tRes.rows[0]?.user_id as string) || "user_kidus_01";
+
   await db.execute({
     sql: "DELETE FROM forex_trades WHERE id = ?",
     args: [id],
   });
+
+  await syncForexGoalAndJourney(userId);
 }
 
 // -------------------------------------------------------------
@@ -1088,6 +1283,32 @@ export async function updateFreelanceProject(
       });
     }
   }
+
+  // Sync Freelancing Goal & Journey Profile
+  if (prevProject) {
+    try {
+      const fRes = await db.execute({
+        sql: `SELECT COUNT(*) as total_projects,
+                     SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_projects,
+                     SUM(CASE WHEN status = 'paid' THEN agreed_price ELSE 0 END) as paid_revenue
+              FROM freelance_projects WHERE user_id = ?`,
+        args: [prevProject.user_id],
+      });
+      const paidCount = Number(fRes.rows[0]?.paid_projects || 0);
+      const paidRev = Number(fRes.rows[0]?.paid_revenue || 0);
+      const fProgress = Math.min(100, Math.round((paidCount / 3) * 100)); // Target 3 clients
+
+      await db.execute({
+        sql: "UPDATE goals SET current_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_freelance' OR category = 'freelancing')",
+        args: [paidCount, fProgress, fProgress, prevProject.user_id],
+      });
+
+      await db.execute({
+        sql: "UPDATE journey_profile SET freelance_status = ?, updated_at = datetime('now') WHERE user_id = ?",
+        args: [`${paidCount} paid clients (${paidRev.toLocaleString()} ETB revenue)`, prevProject.user_id],
+      });
+    } catch (_) {}
+  }
 }
 
 // -------------------------------------------------------------
@@ -1108,10 +1329,19 @@ export async function updateForexTrade(
   }
   if (fields.length === 0) return;
   args.push(tradeId);
+
+  const tRes = await db.execute({
+    sql: "SELECT user_id FROM forex_trades WHERE id = ? LIMIT 1",
+    args: [tradeId],
+  });
+  const userId = (tRes.rows[0]?.user_id as string) || "user_kidus_01";
+
   await db.execute({
     sql: `UPDATE forex_trades SET ${fields.join(", ")} WHERE id = ?`,
     args,
   });
+
+  await syncForexGoalAndJourney(userId);
 }
 
 // -------------------------------------------------------------
@@ -1172,6 +1402,20 @@ export async function saveHealthLog(log: {
       log.notes ?? null,
     ],
   });
+
+  // Cross-system sync: update goal_90d_health progress (Target: 48 completed workouts)
+  try {
+    const hRes = await db.execute({
+      sql: "SELECT COUNT(*) as done FROM health_logs WHERE user_id = ? AND workout_completed = 1 AND date >= '2026-11-02'",
+      args: [log.user_id],
+    });
+    const doneWorkouts = Number(hRes.rows[0]?.done || 0);
+    const hProgress = Math.min(100, Math.round((doneWorkouts / 48) * 100));
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_health' OR category = 'health')",
+      args: [doneWorkouts, hProgress, hProgress, log.user_id],
+    });
+  } catch (_) {}
 }
 
 // -------------------------------------------------------------
@@ -1216,6 +1460,20 @@ export async function saveFamilyLog(log: {
       log.completed ?? 1,
     ],
   });
+
+  // Cross-system sync: update goal_90d_family progress (Target: 12 weekly reviews & family milestones)
+  try {
+    const fRes = await db.execute({
+      sql: "SELECT COUNT(*) as done FROM family_logs WHERE user_id = ? AND completed = 1 AND date >= '2026-11-02'",
+      args: [log.user_id],
+    });
+    const doneFam = Number(fRes.rows[0]?.done || 0);
+    const fProgress = Math.min(100, Math.round((doneFam / 12) * 100));
+    await db.execute({
+      sql: "UPDATE goals SET current_value = ?, progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE user_id = ? AND (id = 'goal_90d_family' OR category = 'family')",
+      args: [doneFam, fProgress, fProgress, log.user_id],
+    });
+  } catch (_) {}
 }
 
 // -------------------------------------------------------------
@@ -1474,6 +1732,16 @@ export async function getReportsOverview(userId = "user_kidus_01", timeRange = "
     });
   }
 
+  const recentTasks = await db.execute({
+    sql: "SELECT title, updated_at, status FROM daily_tasks WHERE user_id = ? AND status = 'completed' ORDER BY updated_at DESC LIMIT 5",
+    args: [userId],
+  });
+  const recentActivity = recentTasks.rows.map((r: any) => ({
+    title: `Completed: ${r.title}`,
+    time: r.updated_at ? new Date(r.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Today",
+    status: r.status,
+  }));
+
   return {
     timeRange,
     weeklyTrend,
@@ -1486,6 +1754,7 @@ export async function getReportsOverview(userId = "user_kidus_01", timeRange = "
       totalExpenses,
     },
     achievements,
+    recentActivity,
   };
 }
 
@@ -1560,7 +1829,7 @@ export async function suggestIntelligentSlot(
 export async function getEmergencyFundGoal(userId = "user_kidus_01") {
   await ensureReady();
   const res = await db.execute({
-    sql: `SELECT * FROM goals WHERE user_id = ? AND (id = 'goal_emergency_fund' OR title LIKE '%Emergency%') LIMIT 1`,
+    sql: `SELECT * FROM goals WHERE user_id = ? AND (id = 'goal_monthly_savings' OR id = 'goal_emergency_fund' OR title LIKE '%Emergency%') LIMIT 1`,
     args: [userId],
   });
 
@@ -1568,24 +1837,25 @@ export async function getEmergencyFundGoal(userId = "user_kidus_01") {
   const currentSavings = finSummary.emergencyFund;
 
   if (res.rows.length === 0) {
-    const goalId = "goal_emergency_fund";
-    const target = 90000;
+    const goalId = "goal_monthly_savings";
+    const target = 15000;
     const progress = target > 0 ? Math.min(100, Math.round((currentSavings / target) * 100)) : 0;
     await db.execute({
       sql: `INSERT OR REPLACE INTO goals (
         id, user_id, title, description, category, reason, tier,
         start_date, deadline, priority, progress, target_value, current_value, unit, currency, status, completion_criteria
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         goalId,
         userId,
-        "Establish Emergency Reserve (90,000 ETB)",
-        "Accumulate 3 months of essential reserves (30,000 ETB/mo) for financial security.",
+        "Establish Initial 15,000 ETB Emergency Fund",
+        "Disciplined allocation of salary and freelance proceeds to build an untouchable emergency cushion.",
         "financial",
-        "Protect family stability and ensure peace of mind before speculative investments.",
-        "90_day",
+        "Break the cycle of zero savings and establish financial peace of mind.",
+        "monthly",
+        null,
         "2026-11-02",
-        "2026-12-31",
+        "2026-11-30",
         "high",
         progress,
         target,
@@ -1593,56 +1863,46 @@ export async function getEmergencyFundGoal(userId = "user_kidus_01") {
         "ETB",
         "ETB",
         progress === 100 ? "completed" : "in_progress",
-        "Save 90,000 ETB in verified emergency reserves",
+        "15,000 ETB verified balance in designated emergency savings account.",
       ],
     });
     return {
       id: goalId,
-      title: "Establish Emergency Reserve (90,000 ETB)",
+      title: "Establish Initial 15,000 ETB Emergency Fund",
       target_value: target,
       current_value: currentSavings,
       progress,
       unit: "ETB",
       currency: "ETB",
-      deadline: "2026-12-31",
+      deadline: "2026-11-30",
     };
   }
 
   const row = res.rows[0];
-  const target = 90000;
+  const target = Number(row.target_value || 15000);
   const progress = target > 0 ? Math.min(100, Math.round((currentSavings / target) * 100)) : 0;
 
-  // Enforce single source of truth target (90,000 ETB) and deadline across all modules
-  if (
-    Number(row.target_value) !== target ||
-    Number(row.current_value) !== currentSavings ||
-    Number(row.progress) !== progress ||
-    row.deadline !== "2026-12-31" ||
-    row.title !== "Establish Emergency Reserve (90,000 ETB)"
-  ) {
+  // Single source of truth update: ensure current_value and progress reflect genuine ledger
+  if (Number(row.current_value) !== currentSavings || Number(row.progress) !== progress) {
     await db.execute({
       sql: `UPDATE goals SET
-            title = 'Establish Emergency Reserve (90,000 ETB)',
-            target_value = ?,
             current_value = ?,
             progress = ?,
-            unit = 'ETB',
-            currency = 'ETB',
-            deadline = '2026-12-31'
+            status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END
             WHERE id = ?`,
-      args: [target, currentSavings, progress, row.id as string],
+      args: [currentSavings, progress, progress, row.id as string],
     });
   }
 
   return {
     id: row.id as string,
-    title: "Establish Emergency Reserve (90,000 ETB)",
+    title: (row.title as string) || "Establish Initial 15,000 ETB Emergency Fund",
     target_value: target,
     current_value: currentSavings,
     progress,
-    unit: "ETB",
-    currency: "ETB",
-    deadline: "2026-12-31",
+    unit: (row.unit as string) || "ETB",
+    currency: (row.currency as string) || "ETB",
+    deadline: (row.deadline as string) || "2026-11-30",
   };
 }
 

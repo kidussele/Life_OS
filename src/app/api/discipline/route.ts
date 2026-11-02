@@ -47,6 +47,30 @@ export async function GET(request: Request) {
     });
     const devHours = Math.round(Number(devRes.rows[0]?.mins || 0) / 60);
 
+    // Compute real 7-day overview for current week (Mon-Sun)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const weeklyOverview: { day: string; date: string; percent: number }[] = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dStr = d.toISOString().split("T")[0];
+      const dayRes = await db.execute({
+        sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done
+              FROM daily_tasks WHERE user_id = 'user_kidus_01' AND date = ?`,
+        args: [dStr],
+      });
+      const dayTotal = Number(dayRes.rows[0]?.total || 0);
+      const dayDone = Number(dayRes.rows[0]?.done || 0);
+      const pct = dayTotal > 0 ? Math.round((dayDone / dayTotal) * 100) : 0;
+      weeklyOverview.push({ day: weekDays[i], date: dStr, percent: pct });
+    }
+
     return NextResponse.json({
       habits,
       stats: {
@@ -56,6 +80,7 @@ export async function GET(request: Request) {
         learnHours,
         devHours,
       },
+      weeklyOverview,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

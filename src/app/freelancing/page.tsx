@@ -145,34 +145,6 @@ export default function FreelancingPage() {
     }
   };
 
-  // Recent Activity items
-  const recentActivities = [
-    {
-      id: "act_1",
-      time: "Today 09:45 AM",
-      title: "Client inquiry received",
-      subtitle: "(Website Development)",
-      icon: Mail,
-      iconColor: "bg-[#E0F2FE] text-[#0284C7]",
-    },
-    {
-      id: "act_2",
-      time: "Yesterday 07:30 PM",
-      title: "Portfolio updated",
-      subtitle: "",
-      icon: Code2,
-      iconColor: "bg-[#EBF5EE] text-[#165B33]",
-    },
-    {
-      id: "act_3",
-      time: "Oct 30, 2026",
-      title: "Service package published",
-      subtitle: "",
-      icon: CheckCircle2,
-      iconColor: "bg-[#EBF5EE] text-[#165B33]",
-    },
-  ];
-
   return (
     <AppLayout>
       <div className="space-y-6 max-w-[1550px] mx-auto pb-16">
@@ -472,15 +444,15 @@ export default function FreelancingPage() {
 
               {/* Step 3: Outreach Campaign */}
               <div className="flex flex-col items-center text-center flex-shrink-0">
-                <div className="w-9 h-9 rounded-full bg-[#165B33] text-white flex items-center justify-center shadow-xs">
-                  <Check size={16} strokeWidth={3} />
+                <div className={`w-9 h-9 rounded-full ${clients.length > 0 ? "bg-[#165B33] text-white" : "border-2 border-[#165B33] bg-[#EBF5EE] text-[#165B33]"} flex items-center justify-center shadow-xs font-bold text-xs`}>
+                  {clients.length > 0 ? <Check size={16} strokeWidth={3} /> : "3"}
                 </div>
                 <span className="text-[11.5px] font-bold text-[#14211A] mt-2 block leading-tight">Outreach</span>
                 <span className="text-[9.5px] font-medium text-[#6C8176]">Campaign</span>
               </div>
 
               {/* Connector Line 3 */}
-              <div className="flex-1 h-[2px] bg-[#165B33] mx-2" />
+              <div className={`flex-1 h-[2px] ${clients.length > 0 ? "bg-[#165B33]" : "border-t-2 border-dashed border-[#CBD7CE]"} mx-2`} />
 
               {/* Step 4 (Active / Highlighted): Get First Client */}
               <div className="flex flex-col items-center text-center flex-shrink-0">
@@ -523,15 +495,19 @@ export default function FreelancingPage() {
               {/* Tile 1 */}
               <div className="p-3 rounded-2xl bg-[#F7FAF8] border border-[#E2EAE5] flex flex-col items-center justify-center space-y-1">
                 <Send size={16} className="text-[#0284C7]" />
-                <span className="text-[16px] font-extrabold text-[#112318] font-mono leading-none">60</span>
+                <span className="text-[16px] font-extrabold text-[#112318] font-mono leading-none">
+                  {clients.length}
+                </span>
                 <span className="text-[9.5px] font-bold text-[#6C8176] leading-tight">Outreach<br />Attempts</span>
               </div>
 
               {/* Tile 2 */}
               <div className="p-3 rounded-2xl bg-[#F7FAF8] border border-[#E2EAE5] flex flex-col items-center justify-center space-y-1">
                 <Users size={16} className="text-[#165B33]" />
-                <span className="text-[16px] font-extrabold text-[#112318] font-mono leading-none">1</span>
-                <span className="text-[9.5px] font-bold text-[#6C8176] leading-tight">Qualified<br />Lead</span>
+                <span className="text-[16px] font-extrabold text-[#112318] font-mono leading-none">
+                  {clients.filter((c) => c.status === "lead" || c.status === "contacted").length}
+                </span>
+                <span className="text-[9.5px] font-bold text-[#6C8176] leading-tight">Qualified<br />Leads</span>
               </div>
 
               {/* Tile 3 */}
