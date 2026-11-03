@@ -159,6 +159,12 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
+    if (now?.dateStr && currentDate === "2026-11-02") {
+      setCurrentDate(now.dateStr);
+    }
+  }, [now?.dateStr]);
+
+  useEffect(() => {
     loadData(currentDate);
 
     const handleTaskRefresh = () => {

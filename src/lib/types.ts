@@ -53,6 +53,8 @@ export interface ScheduleBlock {
 export interface DailyTask {
   id: string;
   user_id: string;
+  schedule_block_id?: string | null;
+  habit_id?: string | null;
   goal_id?: string | null;
   title: string;
   instructions: string;

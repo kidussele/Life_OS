@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { useTimeEngine } from "@/hooks/useTimeEngine";
 import { Modal } from "@/components/Modal";
 import {
   Store,
@@ -321,7 +322,8 @@ export default function SukuCommandCenterPage() {
   };
 
   // Current system date
-  const todayStr = "2026-11-02";
+  const { now } = useTimeEngine();
+  const todayStr = now?.dateStr || "2026-11-03";
 
   // Calculate project performance stats strictly from actual tasks
   const totalTasks = tasks.length;
@@ -396,10 +398,17 @@ export default function SukuCommandCenterPage() {
     })[0];
   }, [tasks]);
 
-  // Weekly Progress (Week of Nov 2 - Nov 8, 2026)
+  // Weekly Progress
   const weeklyMetrics = useMemo(() => {
-    const weekStart = "2026-11-02";
-    const weekEnd = "2026-11-08";
+    const curD = new Date(`${todayStr}T12:00:00Z`);
+    const dayOfWeek = curD.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(curD);
+    monday.setDate(curD.getDate() + mondayOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const weekStart = monday.toISOString().split("T")[0];
+    const weekEnd = sunday.toISOString().split("T")[0];
 
     const weeklyTasks = tasks.filter((t) => {
       const stage = getTaskStageId(t);

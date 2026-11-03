@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { AppLayout } from "@/components/AppLayout";
 import { Modal } from "@/components/Modal";
 import {
@@ -43,6 +44,7 @@ export default function ReportsPage() {
     totalCapital: "0",
   });
   const [reportData, setReportData] = useState<any>(null);
+  const [selectedReportId, setSelectedReportId] = useState<string>("daily_execution");
 
   // Weekly Review State
   const [reviews, setReviews] = useState<any[]>([]);
@@ -101,7 +103,22 @@ export default function ReportsPage() {
         if (repRes && repRes.ok) {
           const rep = await repRes.json();
           setReportData(rep);
-          if (rep.weeklyTrend && rep.weeklyTrend.length > 0) {
+          
+          if (rep.reports && Array.isArray(rep.reports)) {
+            const daily = rep.reports.find((r: any) => r.id === "daily_execution");
+            const spiritual = rep.reports.find((r: any) => r.id === "spiritual_consistency");
+            const weekly = rep.reports.find((r: any) => r.id === "weekly_performance");
+            
+            setMetrics((prev) => ({
+              ...prev,
+              scheduleExecution: daily?.completionPercentage ?? 0,
+              scheduleChange: daily ? `${daily.completedActivities} / ${daily.plannedActivities} tasks` : "Baseline",
+              prayerDevotion: spiritual?.completionPercentage ?? 0,
+              prayerChange: spiritual ? `${spiritual.completedActivities} / ${spiritual.plannedActivities} prayers` : "Baseline",
+              weeklyConsistency: weekly?.completionPercentage ?? 0,
+              weeklyChange: weekly?.completionPercentage > 0 ? `${weekly.completionPercentage}% adherence` : "Baseline",
+            }));
+          } else if (rep.weeklyTrend && rep.weeklyTrend.length > 0) {
             const daysWithTasks = rep.weeklyTrend.filter((d: any) => d.total > 0);
             const avg = daysWithTasks.length > 0
               ? Math.round(daysWithTasks.reduce((acc: number, d: any) => acc + d.percent, 0) / daysWithTasks.length)
@@ -177,6 +194,9 @@ export default function ReportsPage() {
   const polylinePoints = trendPoints.map((p: any) => `${p.x},${p.y}`).join(" ");
   const polygonPoints = `20,110 20,${trendPoints[0].y} ` + polylinePoints + ` 290,110`;
 
+  const activeReport =
+    reportData?.reports?.find((r: any) => r.id === selectedReportId) || reportData?.reports?.[0];
+
   return (
     <AppLayout>
       <div className="space-y-4 max-w-7xl mx-auto pb-16">
@@ -200,8 +220,21 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Right: Time Filter Tabs + Export Button */}
+          {/* Right: Time Filter Tabs + View Switcher + Export Button */}
           <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
+            {/* View Switcher */}
+            <div className="flex items-center p-1 bg-[#F1F5F9] rounded-xl border border-[#E2E8F0]">
+              <Link
+                href="/analysis"
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-[#64748B] hover:text-[#0F172A] transition-colors"
+              >
+                Analytics & Trends
+              </Link>
+              <span className="px-3 py-1.5 rounded-lg text-[12px] font-bold bg-white text-[#165B33] shadow-xs">
+                Structured Reports
+              </span>
+            </div>
+
             {/* Filter Pills */}
             <div className="flex items-center space-x-1 bg-transparent">
               {["Last 30 Days", "Last 90 Days", "Last 6 Months", "Last Year"].map((tab) => {
@@ -308,6 +341,154 @@ export default function ReportsPage() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* 2.5 EIGHT VERIFIED STRUCTURED PERFORMANCE REPORTS         */}
+        {/* ========================================================= */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#F1F5F9]">
+            <div className="flex items-center space-x-2">
+              <FileText size={18} className="text-[#165B33]" />
+              <h2 className="text-[15px] font-bold text-[#0F172A]">
+                Official Domain & Performance Reports (8 Structured Audits)
+              </h2>
+            </div>
+            <span className="text-[11.5px] text-[#64748B]">
+              Real database audits with verified achievements and performance areas.
+            </span>
+          </div>
+
+          {/* 8 Report Selection Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            {(
+              reportData?.reports || [
+                { id: "daily_execution", title: "Daily Execution Report" },
+                { id: "weekly_performance", title: "Weekly Performance Report" },
+                { id: "monthly_progress", title: "Monthly Life Progress Report" },
+                { id: "habit_discipline", title: "Habit & Discipline Report" },
+                { id: "financial", title: "Financial Report" },
+                { id: "goal_progress", title: "Goal Progress Report" },
+                { id: "learning_career", title: "Learning & Career Report" },
+                { id: "spiritual_consistency", title: "Spiritual Consistency Report" },
+              ]
+            ).map((rep: any) => {
+              const isSelected = (selectedReportId || "daily_execution") === rep.id;
+              return (
+                <button
+                  key={rep.id}
+                  onClick={() => setSelectedReportId(rep.id)}
+                  className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-[#165B33] text-white shadow-xs"
+                      : "bg-[#F8FAFC] text-[#475569] hover:bg-[#F1F5F9]"
+                  }`}
+                >
+                  {rep.title}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Report Detail View */}
+          {activeReport ? (
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E2E8F0]">
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0F172A]">{activeReport.title}</h3>
+                  <div className="text-[11.5px] text-[#64748B] flex items-center gap-2 mt-0.5">
+                    <Calendar size={13} className="text-[#165B33]" />
+                    <span>
+                      Reporting Period: <strong>{activeReport.periodLabel || timeFilter}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <span className="text-[10.5px] font-bold text-[#64748B] block">Completion Rate</span>
+                    <span className="text-2xl font-black text-[#165B33] font-mono leading-none">
+                      {activeReport.completionPercentage}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Metric Pills: Planned, Completed, Change */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase">Planned Activities</span>
+                  <div className="text-lg font-extrabold text-[#0F172A] font-mono mt-0.5">
+                    {activeReport.plannedActivities}
+                  </div>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase">Actual Completed</span>
+                  <div className="text-lg font-extrabold text-[#16A34A] font-mono mt-0.5">
+                    {activeReport.completedActivities}
+                  </div>
+                </div>
+                <div className="bg-white p-3 rounded-xl border border-[#E2E8F0]">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase">Period Comparison</span>
+                  <div className="text-lg font-extrabold text-[#0F172A] font-mono mt-0.5 flex items-center gap-1">
+                    {activeReport.changeVsPrevious >= 0 ? "+" : ""}
+                    {activeReport.changeVsPrevious}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Verified Achievements & Areas for Improvement */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                {/* Verified Achievements */}
+                <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] space-y-2">
+                  <div className="flex items-center space-x-1.5 text-[#16A34A]">
+                    <Trophy size={14} />
+                    <h4 className="text-[12px] font-bold">Achievements (Verified from DB Records)</h4>
+                  </div>
+                  {activeReport.achievements && activeReport.achievements.length > 0 ? (
+                    <ul className="space-y-1.5 text-[11.5px] text-[#334155]">
+                      {activeReport.achievements.map((ach: any, idx: number) => (
+                        <li key={idx} className="flex items-start gap-1.5">
+                          <CheckCircle2 size={13} className="text-[#16A34A] mt-0.5 flex-shrink-0" />
+                          <span>{ach.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[11.5px] text-[#64748B] italic">
+                      No achievements recorded yet for this reporting period. Complete scheduled tasks and milestones to unlock verified achievements.
+                    </p>
+                  )}
+                </div>
+
+                {/* Areas for Improvement */}
+                <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] space-y-2">
+                  <div className="flex items-center space-x-1.5 text-[#D97706]">
+                    <Sparkles size={14} />
+                    <h4 className="text-[12px] font-bold">Areas Requiring Improvement</h4>
+                  </div>
+                  {activeReport.areasForImprovement && activeReport.areasForImprovement.length > 0 ? (
+                    <ul className="space-y-1.5 text-[11.5px] text-[#334155]">
+                      {activeReport.areasForImprovement.map((imp: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] mt-1.5 flex-shrink-0" />
+                          <span>{imp}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-[11.5px] text-[#64748B] italic">
+                      All criteria met; continue sustaining performance.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 text-center text-[#64748B] text-[12px] bg-[#F8FAFC] rounded-xl border border-dashed border-[#E2E8F0]">
+              Not enough data yet.
+            </div>
+          )}
         </div>
 
         {/* ========================================================= */}

@@ -55,7 +55,9 @@ export default function MyDayPage() {
 
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string>("2026-11-02");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [isViewingHistory, setIsViewingHistory] = useState<boolean>(false);
+  const [allowHistoricalEdit, setAllowHistoricalEdit] = useState<boolean>(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [todayFocusMinutes, setTodayFocusMinutes] = useState(0);
 
@@ -117,11 +119,14 @@ export default function MyDayPage() {
   // Fetch Day Data with timezone awareness and actual focus minutes
   const fetchDayData = async (dateStr?: string) => {
     setLoading(true);
-    const date = dateStr || selectedDate || timeState.dateStr || "2026-11-02";
+    const date = dateStr || selectedDate || timeState.dateStr || new Date().toISOString().split("T")[0];
     setSelectedDate(date);
+    const isHistory = Boolean(timeState.dateStr && date < timeState.dateStr);
+    setIsViewingHistory(isHistory);
+
     try {
       const [resTasks, resFocus] = await Promise.all([
-        fetch(`/api/tasks?date=${date}&timezone=${encodeURIComponent(timezone)}`),
+        fetch(`/api/tasks?date=${date}&timezone=${encodeURIComponent(timezone || "Africa/Addis_Ababa")}`),
         fetch(`/api/focus`),
       ]);
       if (resTasks.ok) {
@@ -139,8 +144,14 @@ export default function MyDayPage() {
     }
   };
 
+  // Automatic local date detection & midnight rollover
   useEffect(() => {
-    fetchDayData();
+    if (timeState.dateStr) {
+      if (!selectedDate || selectedDate === timeState.dateStr || !isViewingHistory) {
+        setSelectedDate(timeState.dateStr);
+        fetchDayData(timeState.dateStr);
+      }
+    }
   }, [timeState.dateStr, timezone]);
 
   useEffect(() => {
@@ -300,6 +311,13 @@ export default function MyDayPage() {
 
   // Toggle single task completed
   const handleToggleTask = async (task: DailyTask) => {
+    if (isViewingHistory && !allowHistoricalEdit) {
+      const confirmEdit = window.confirm(
+        `You are viewing historical records for ${selectedDate}. Are you sure you want to modify this past task?`
+      );
+      if (!confirmEdit) return;
+    }
+
     const newStatus = task.status === "completed" ? "upcoming" : "completed";
     try {
       const res = await fetch("/api/tasks", {
@@ -315,6 +333,8 @@ export default function MyDayPage() {
         setTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
         );
+        window.dispatchEvent(new Event("life_os_task_updated"));
+        window.dispatchEvent(new Event("life_os_habit_updated"));
       }
     } catch (e) {
       console.error(e);
@@ -502,66 +522,6 @@ export default function MyDayPage() {
   const daytimeTasks = tasks.filter((t) => getTaskSection(t) === "daytime");
   const eveningTasks = tasks.filter((t) => getTaskSection(t) === "evening");
   const nightTasks = tasks.filter((t) => getTaskSection(t) === "night");
-
-  // Fallback defaults matching screenshot if tasks are loading
-  const morningList = morningTasks.length > 0 ? morningTasks : [
-    {
-      id: "t_m1",
-      user_id: "user_kidus_01",
-      title: "Morning Prayer",
-      instructions: "Gratitude and spiritual preparation.",
-      category: "spiritual",
-      date: "2026-11-02",
-      start_time: "04:00",
-      end_time: "04:30",
-      duration_minutes: 30,
-      priority: "high",
-      status: "upcoming" as const,
-      is_protected: 1,
-    },
-    {
-      id: "t_m2",
-      user_id: "user_kidus_01",
-      title: "Exercise",
-      instructions: "Workout, mobility and stretching.",
-      category: "health",
-      date: "2026-11-02",
-      start_time: "04:30",
-      end_time: "05:00",
-      duration_minutes: 30,
-      priority: "medium",
-      status: "upcoming" as const,
-      is_protected: 0,
-    },
-    {
-      id: "t_m3",
-      user_id: "user_kidus_01",
-      title: "Shower & Breakfast",
-      instructions: "Personal hygiene and healthy breakfast.",
-      category: "health",
-      date: "2026-11-02",
-      start_time: "05:00",
-      end_time: "05:30",
-      duration_minutes: 30,
-      priority: "medium",
-      status: "upcoming" as const,
-      is_protected: 0,
-    },
-    {
-      id: "t_m4",
-      user_id: "user_kidus_01",
-      title: "English Learning",
-      instructions: "Speaking, listening and vocabulary.",
-      category: "learning",
-      date: "2026-11-02",
-      start_time: "05:30",
-      end_time: "06:00",
-      duration_minutes: 30,
-      priority: "medium",
-      status: "upcoming" as const,
-      is_protected: 0,
-    },
-  ];
 
   // Calculations (Zero fabrication)
   const totalTasksCount = tasks.length;
@@ -891,12 +851,26 @@ export default function MyDayPage() {
 
             {/* Right Buttons: Date Picker + Morning/Night Prayer Pills */}
             <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+              {/* Today Quick Jump Button */}
+              {timeState.dateStr && selectedDate !== timeState.dateStr && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDate(timeState.dateStr);
+                    fetchDayData(timeState.dateStr);
+                  }}
+                  className="bg-[#165B33] hover:bg-[#124B2C] text-white text-[12px] font-bold px-3 py-2 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Today
+                </button>
+              )}
+
               {/* Date Button with inline picker popover */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="bg-white/95 hover:bg-white text-[#14211A] text-[12.5px] font-bold px-3.5 py-2 rounded-xl border border-[#D5E2D9] shadow-2xs flex items-center gap-2 transition-colors"
+                  className="bg-white/95 hover:bg-white text-[#14211A] text-[12.5px] font-bold px-3.5 py-2 rounded-xl border border-[#D5E2D9] shadow-2xs flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <span className="font-mono">{selectedDate}</span>
                   <CalendarIcon size={14} className="text-[#6C8176]" />
@@ -944,6 +918,43 @@ export default function MyDayPage() {
             </div>
           </div>
         </div>
+
+        {/* Historical Record Warning Banner */}
+        {isViewingHistory && (
+          <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[12.5px] text-[#92400E] shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <span className="font-extrabold uppercase tracking-wide text-[10.5px] bg-[#FEF3C7] px-2 py-0.5 rounded-md border border-[#FDE68A]">
+                Historical Review
+              </span>
+              <span>
+                Viewing records for <strong>{selectedDate}</strong>. Actions are locked to preserve history.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAllowHistoricalEdit(!allowHistoricalEdit)}
+                className={`px-3 py-1.5 rounded-xl text-[11.5px] font-bold border transition-colors cursor-pointer ${
+                  allowHistoricalEdit
+                    ? "bg-[#DC2626] text-white border-[#DC2626]"
+                    : "bg-white text-[#92400E] border-[#FDE68A] hover:bg-[#FEF3C7]"
+                }`}
+              >
+                {allowHistoricalEdit ? "Edits Unlocked" : "Unlock Edits"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDate(timeState.dateStr);
+                  fetchDayData(timeState.dateStr);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#165B33] hover:bg-[#124B2C] text-white text-[11.5px] font-bold transition-colors cursor-pointer"
+              >
+                Return to Today
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ========================================================
             EXECUTIVE ASSISTANT BAR (Section 2 Requirement)

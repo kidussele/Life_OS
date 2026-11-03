@@ -1,58 +1,73 @@
 import { NextResponse } from "next/server";
 import { getHabitsWithTodayStatus } from "@/lib/repository";
+import { getHabitAnalytics } from "@/lib/analyticsService";
+import { getNowInTimezone } from "@/lib/timeEngine";
 import { db } from "@/lib/db";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const dateStr = searchParams.get("date") || new Date().toISOString().split("T")[0];
-    const habits = await getHabitsWithTodayStatus("user_kidus_01", dateStr);
+    const userId = searchParams.get("userId") || "user_kidus_01";
+    const tz = searchParams.get("timezone") || "Africa/Addis_Ababa";
+    const now = getNowInTimezone(tz);
+    const dateStr = searchParams.get("date") || now.dateStr;
 
-    // Compute real 7-day average consistency from daily_tasks
-    const taskConsistencyRes = await db.execute({
-      sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done
-            FROM daily_tasks
-            WHERE user_id = 'user_kidus_01' AND date >= date('now', '-7 days')`,
-      args: [],
-    });
-    const tTotal = Number(taskConsistencyRes.rows[0]?.total || 0);
-    const tDone = Number(taskConsistencyRes.rows[0]?.done || 0);
-    const weeklyAverage = tTotal > 0 ? Math.round((tDone / tTotal) * 100) : 0;
+    // 1. Fetch habits with real occurrence status for this date and real streak
+    const habits = await getHabitsWithTodayStatus(userId, dateStr);
+
+    // 2. Compute current week bounds (Mon - Sun) in local timezone
+    const curDate = new Date(`${dateStr}T12:00:00Z`);
+    const dayOfWeek = curDate.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(curDate);
+    monday.setDate(curDate.getDate() + mondayOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const weekStartStr = monday.toISOString().split("T")[0];
+    const weekEndStr = sunday.toISOString().split("T")[0];
+
+    // Real weekly habit analytics
+    const weeklyHabitStats = await getHabitAnalytics(userId, weekStartStr, weekEndStr);
+
+    // Real daily adherence: completed habits on dateStr / total habits
+    const totalHabitsCount = habits.length;
+    const completedTodayCount = habits.filter((h) => h.completed_today).length;
+    const dailyAdherence = totalHabitsCount > 0
+      ? Math.round((completedTodayCount / totalHabitsCount) * 100)
+      : 0;
 
     // Real prayer count in last 90 days
     const prayerRes = await db.execute({
-      sql: "SELECT COUNT(*) as count FROM prayer_logs WHERE user_id = 'user_kidus_01' AND completed = 1",
-      args: [],
+      sql: "SELECT COUNT(*) as count FROM prayer_logs WHERE user_id = ? AND completed = 1",
+      args: [userId],
     });
     const prayerCount = Number(prayerRes.rows[0]?.count || 0);
 
     // Real workout tasks count
     const workoutRes = await db.execute({
-      sql: "SELECT COUNT(*) as count FROM daily_tasks WHERE user_id = 'user_kidus_01' AND category = 'health' AND status = 'completed'",
-      args: [],
+      sql: "SELECT COUNT(*) as count FROM daily_tasks WHERE user_id = ? AND category = 'health' AND status = 'completed'",
+      args: [userId],
     });
     const workoutCount = Number(workoutRes.rows[0]?.count || 0);
 
     // Real learning hours from completed tasks
     const learnRes = await db.execute({
-      sql: "SELECT SUM(duration_minutes) as mins FROM daily_tasks WHERE user_id = 'user_kidus_01' AND category = 'learning' AND status = 'completed'",
-      args: [],
+      sql: "SELECT SUM(actual_duration_minutes) as actualMins, SUM(duration_minutes) as planMins FROM daily_tasks WHERE user_id = ? AND category = 'learning' AND status = 'completed'",
+      args: [userId],
     });
-    const learnHours = Math.round(Number(learnRes.rows[0]?.mins || 0) / 60);
+    const learnMins = Number(learnRes.rows[0]?.actualMins || learnRes.rows[0]?.planMins || 0);
+    const learnHours = Math.round(learnMins / 60);
 
     // Real dev hours
     const devRes = await db.execute({
-      sql: "SELECT SUM(duration_minutes) as mins FROM daily_tasks WHERE user_id = 'user_kidus_01' AND category IN ('development', 'business') AND status = 'completed'",
-      args: [],
+      sql: "SELECT SUM(actual_duration_minutes) as actualMins, SUM(duration_minutes) as planMins FROM daily_tasks WHERE user_id = ? AND category IN ('development', 'business') AND status = 'completed'",
+      args: [userId],
     });
-    const devHours = Math.round(Number(devRes.rows[0]?.mins || 0) / 60);
+    const devMins = Number(devRes.rows[0]?.actualMins || devRes.rows[0]?.planMins || 0);
+    const devHours = Math.round(devMins / 60);
 
     // Compute real 7-day overview for current week (Mon-Sun)
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + mondayOffset);
     const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const weeklyOverview: { day: string; date: string; percent: number }[] = [];
 
@@ -62,8 +77,8 @@ export async function GET(request: Request) {
       const dStr = d.toISOString().split("T")[0];
       const dayRes = await db.execute({
         sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done
-              FROM daily_tasks WHERE user_id = 'user_kidus_01' AND date = ?`,
-        args: [dStr],
+              FROM daily_tasks WHERE user_id = ? AND date = ?`,
+        args: [userId, dStr],
       });
       const dayTotal = Number(dayRes.rows[0]?.total || 0);
       const dayDone = Number(dayRes.rows[0]?.done || 0);
@@ -74,11 +89,15 @@ export async function GET(request: Request) {
     return NextResponse.json({
       habits,
       stats: {
-        weeklyAverage,
+        dailyAdherence,
+        weeklyAverage: weeklyHabitStats.overallAdherence,
+        weeklyAdherence: weeklyHabitStats.overallAdherence,
         prayerCount,
         workoutCount,
         learnHours,
         devHours,
+        totalEligibleOccurrences: weeklyHabitStats.totalEligibleOccurrences,
+        totalCompletedOccurrences: weeklyHabitStats.totalCompletedOccurrences,
       },
       weeklyOverview,
     });

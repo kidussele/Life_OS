@@ -36,7 +36,7 @@ export default function PlannerPage() {
   const [learnings, setLearnings] = useState("");
   const [improvements, setImprovements] = useState("");
   const [nextWeekPriorities, setNextWeekPriorities] = useState("");
-  const [overallScore, setOverallScore] = useState(8.5);
+  const [overallScore, setOverallScore] = useState<number | null>(null);
   const [savingReview, setSavingReview] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
@@ -62,7 +62,7 @@ export default function PlannerPage() {
           setLearnings(existing.learnings || "");
           setImprovements(existing.improvements || "");
           setNextWeekPriorities(existing.next_week_priorities || "");
-          setOverallScore(existing.overall_score || 8.5);
+          setOverallScore(existing.overall_score !== undefined && existing.overall_score !== null ? existing.overall_score : null);
         }
       }
     } catch (err) {
@@ -499,12 +499,29 @@ export default function PlannerPage() {
             {/* Score Slider */}
             <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#F7FAF8] rounded-2xl border border-[#E2E9E4]">
               <div>
-                <span className="text-[12.5px] font-bold text-[#14211A]">
-                  Overall Week Execution Score:{" "}
-                  <span className="text-[#165B33] font-mono text-[16px]">{overallScore} / 10</span>
-                </span>
-                <p className="text-[11px] text-[#6C8176]">
-                  Rate your consistency, discipline, and execution fidelity.
+                <div className="flex items-center gap-2">
+                  <span className="text-[12.5px] font-bold text-[#14211A]">
+                    Self-Assessed Rating:{" "}
+                    <span className="text-[#165B33] font-mono text-[15px]">
+                      {overallScore !== null ? `${overallScore} / 10` : "Unrated"}
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EBF5EE] text-[#165B33] border border-[#B7E4C7]">
+                    Manual Input
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#6C8176] mt-0.5">
+                  Your subjective reflection score. Automatically calculated performance:{" "}
+                  <strong>
+                    {(metrics?.tasksCompleted || 0) + (metrics?.tasksMissed || 0) > 0
+                      ? `${Math.round(
+                          ((metrics.tasksCompleted || 0) /
+                            ((metrics.tasksCompleted || 0) + (metrics.tasksMissed || 0))) *
+                            100
+                        )}% (${metrics.tasksCompleted || 0} done)`
+                      : "0% (0 tasks logged)"}
+                  </strong>{" "}
+                  from database.
                 </p>
               </div>
 
@@ -514,14 +531,14 @@ export default function PlannerPage() {
                   min="1"
                   max="10"
                   step="0.5"
-                  value={overallScore}
+                  value={overallScore ?? 7.0}
                   onChange={(e) => setOverallScore(parseFloat(e.target.value))}
-                  className="w-48 accent-[#165B33]"
+                  className="w-40 accent-[#165B33]"
                 />
                 <button
                   type="submit"
                   disabled={savingReview}
-                  className="px-5 py-2.5 bg-[#165B33] hover:bg-[#124B2C] text-white font-bold text-[13px] rounded-xl shadow-xs transition-all flex items-center gap-2"
+                  className="px-5 py-2.5 bg-[#165B33] hover:bg-[#124B2C] text-white font-bold text-[13px] rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <Send size={15} />
                   <span>{savingReview ? "Saving..." : "Save & Approve Weekly Review"}</span>

@@ -23,12 +23,18 @@ import {
   Plus,
 } from "lucide-react";
 import { PrayerLog } from "@/lib/types";
+import { useTimeEngine } from "@/hooks/useTimeEngine";
 
 export default function SpiritualLifePage() {
+  const { now } = useTimeEngine();
   const [logs, setLogs] = useState<PrayerLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTimerType, setActiveTimerType] = useState<"morning" | "night" | null>(null);
-  const [today, setToday] = useState("2026-11-02");
+  const [today, setToday] = useState(now?.dateStr || "2026-11-03");
+
+  useEffect(() => {
+    if (now?.dateStr) setToday(now.dateStr);
+  }, [now?.dateStr]);
 
   // Local state for today's status
   const [morningCompleted, setMorningCompleted] = useState(false);

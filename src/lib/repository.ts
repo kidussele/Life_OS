@@ -177,8 +177,28 @@ export function getEveningRotationForDate(dateStr: string): { title: string; des
 }
 
 // -------------------------------------------------------------
+// -------------------------------------------------------------
 // DAILY TASKS (MY DAY)
 // -------------------------------------------------------------
+
+export function getHabitIdForTask(title: string, category?: string): string | null {
+  const t = (title || "").toLowerCase();
+  const c = (category || "").toLowerCase();
+
+  if (t.includes("morning prayer")) return "h_m_prayer";
+  if (t.includes("night prayer")) return "h_n_prayer";
+  if (t.includes("exercise") || t.includes("workout") || t.includes("fitness") || t.includes("cardio")) return "h_exercise";
+  if (t.includes("english")) return "h_english";
+  if (t.includes("professional") || t.includes("code study") || (c === "learning" && t.includes("learning"))) return "h_prof_learn";
+  if (t.includes("employment") || (c === "work" && t.includes("focus"))) return "h_work";
+  if (t.includes("development") || t.includes("suku") || t.includes("freelanc") || t.includes("forex")) return "h_dev_session";
+  if (t.includes("financial") || t.includes("planning") || t.includes("responsibilities") || t.includes("expense")) return "h_fin_track";
+  if (t.includes("family")) return "h_family";
+  if (t.includes("sleep")) return "h_sleep";
+  if (t.includes("wake")) return "h_wake";
+  return null;
+}
+
 export async function getDailyTasks(
   userId = "user_kidus_01",
   dateStr: string,
@@ -197,6 +217,7 @@ export async function getDailyTasks(
   }
 
   const now = getNowInTimezone(tz);
+  const targetDate = dateStr || now.dateStr;
 
   const annotateStatus = (t: any): DailyTask => {
     const dynamicStatus = calculateIntelligentTaskStatus(
@@ -220,7 +241,7 @@ export async function getDailyTasks(
   // Check if tasks exist for this date
   const res = await db.execute({
     sql: "SELECT * FROM daily_tasks WHERE user_id = ? AND date = ? ORDER BY start_time ASC",
-    args: [userId, dateStr],
+    args: [userId, targetDate],
   });
 
   if (res.rows.length > 0) {
@@ -228,16 +249,26 @@ export async function getDailyTasks(
   }
 
   // Auto-generate tasks from schedule blocks for this date
-  const d = new Date(dateStr + "T12:00:00Z");
+  const d = new Date(targetDate + "T12:00:00Z");
   const dayOfWeek = d.getDay();
   let dayType: string = "weekday";
   if (dayOfWeek === 6) dayType = "saturday";
   else if (dayOfWeek === 0) dayType = "sunday";
 
-  const blocks = await getScheduleBlocks(userId, dayType);
-  const eveningFocus = getEveningRotationForDate(dateStr);
+  let blocks = await getScheduleBlocks(userId, dayType);
+  if (blocks.length === 0 && userId !== "user_kidus_01") {
+    // Fallback to default template schedule blocks if new user hasn't customized blocks
+    blocks = await getScheduleBlocks("user_kidus_01", dayType);
+  }
 
-  const generatedTasks: DailyTask[] = [];
+  // Pre-fetch user's active habits to link tasks to habit occurrences correctly
+  const userHabitsRes = await db.execute({
+    sql: "SELECT id, name, category FROM habits WHERE user_id = ? AND is_active = 1",
+    args: [userId],
+  });
+  const userHabits = userHabitsRes.rows as any[];
+
+  const eveningFocus = getEveningRotationForDate(targetDate);
 
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
@@ -255,22 +286,49 @@ export async function getDailyTasks(
 
     if (b.title.includes("Morning Prayer") || b.title.includes("Night Prayer")) {
       goalId = "goal_90d_spiritual";
+    } else if (b.title.includes("Exercise") || b.title.includes("Workout")) {
+      goalId = "goal_90d_health";
     }
 
-    const taskId = `task_${dateStr}_${i + 1}`;
+    const taskId = `task_${userId}_${targetDate}_${b.id}`;
+
+    // Resolve habitId scoped to this user
+    let habitId: string | null = null;
+    const matchHabit = userHabits.find((h) => {
+      const hn = String(h.name || "").toLowerCase();
+      const tn = title.toLowerCase();
+      const origBn = (b.title || "").toLowerCase();
+      return (
+        hn === tn ||
+        tn.includes(hn) ||
+        hn.includes(tn) ||
+        hn === origBn ||
+        origBn.includes(hn) ||
+        hn.includes(origBn) ||
+        (h.category && (h.category === category || h.category === b.category))
+      );
+    });
+    if (matchHabit) {
+      habitId = String(matchHabit.id);
+    } else if (userId === "user_kidus_01") {
+      habitId = getHabitIdForTask(title, category) || getHabitIdForTask(b.title, b.category);
+    }
+
     await db.execute({
-      sql: `INSERT INTO daily_tasks (
-        id, user_id, goal_id, title, instructions, category, date,
-        start_time, end_time, duration_minutes, priority, status, is_protected
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'upcoming', ?)`,
+      sql: `INSERT OR IGNORE INTO daily_tasks (
+        id, user_id, schedule_block_id, habit_id, goal_id, title, instructions, category, date,
+        start_time, end_time, duration_minutes, priority, status, is_protected, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'upcoming', ?, datetime('now'))`,
       args: [
         taskId,
         userId,
+        b.id,
+        habitId,
         goalId,
         title,
         instructions,
         category,
-        dateStr,
+        targetDate,
         b.start_time,
         b.end_time,
         b.duration_minutes,
@@ -278,26 +336,15 @@ export async function getDailyTasks(
         b.is_protected,
       ],
     });
-
-    generatedTasks.push({
-      id: taskId,
-      user_id: userId,
-      goal_id: goalId,
-      title,
-      instructions,
-      category,
-      date: dateStr,
-      start_time: b.start_time,
-      end_time: b.end_time,
-      duration_minutes: b.duration_minutes,
-      priority: b.is_protected ? "high" : "medium",
-      status: "upcoming",
-      is_protected: b.is_protected,
-      created_at: new Date().toISOString(),
-    });
   }
 
-  return generatedTasks.map(annotateStatus);
+  // Idempotently query back all persisted records
+  const freshRes = await db.execute({
+    sql: "SELECT * FROM daily_tasks WHERE user_id = ? AND date = ? ORDER BY start_time ASC",
+    args: [userId, targetDate],
+  });
+
+  return (freshRes.rows as unknown as DailyTask[]).map(annotateStatus);
 }
 
 export async function updateDailyTask(
@@ -323,28 +370,100 @@ export async function updateDailyTask(
     args,
   });
 
-  // If status was updated, recalculate linked goal progress
-  if (data.status) {
-    try {
-      const taskRes = await db.execute({
-        sql: "SELECT goal_id FROM daily_tasks WHERE id = ?",
-        args: [taskId],
-      });
-      const goalId = taskRes.rows[0]?.goal_id as string;
-      if (goalId) {
+  // Cross-system automated synchronization
+  try {
+    const taskRes = await db.execute({
+      sql: "SELECT * FROM daily_tasks WHERE id = ? LIMIT 1",
+      args: [taskId],
+    });
+    const task = taskRes.rows[0];
+
+    if (task) {
+      const isDone = data.status ? data.status === "completed" : task.status === "completed";
+      const dateStr = (task.date as string);
+      const uid = (task.user_id as string);
+      let habitId = (task.habit_id as string);
+
+      if (!habitId) {
+        const uhRes = await db.execute({
+          sql: "SELECT id, name, category FROM habits WHERE user_id = ? AND is_active = 1",
+          args: [uid],
+        });
+        const match = (uhRes.rows as any[]).find((h) => {
+          const hn = String(h.name || "").toLowerCase();
+          const tn = String(task.title || "").toLowerCase();
+          return hn === tn || tn.includes(hn) || hn.includes(tn) || (h.category && h.category === task.category);
+        });
+        if (match) {
+          habitId = String(match.id);
+        } else if (uid === "user_kidus_01") {
+          habitId = getHabitIdForTask(String(task.title), String(task.category)) || "";
+        }
+      }
+
+      // 1. Synchronize habit_logs
+      if (habitId) {
+        const hlId = `hl_${habitId}_${dateStr}`;
+        await db.execute({
+          sql: `INSERT INTO habit_logs (id, habit_id, date, completed)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(habit_id, date) DO UPDATE SET completed = excluded.completed`,
+          args: [hlId, habitId, dateStr, isDone ? 1 : 0],
+        });
+      }
+
+      // 2. Synchronize Prayer Devotion
+      const titleLower = String(task.title || "").toLowerCase();
+      if (titleLower.includes("morning prayer")) {
+        await savePrayerLog({
+          user_id: uid,
+          date: dateStr,
+          prayer_type: "morning",
+          scheduled_time: "04:00",
+          duration_minutes: 30,
+          completed: isDone ? 1 : 0,
+          completed_at: isDone ? new Date().toISOString() : null,
+        });
+      } else if (titleLower.includes("night prayer")) {
+        await savePrayerLog({
+          user_id: uid,
+          date: dateStr,
+          prayer_type: "night",
+          scheduled_time: "21:15",
+          duration_minutes: 30,
+          completed: isDone ? 1 : 0,
+          completed_at: isDone ? new Date().toISOString() : null,
+        });
+      }
+
+      // 3. Synchronize Health & Workout Logs
+      if (task.category === "health" || titleLower.includes("workout") || titleLower.includes("exercise")) {
+        await saveHealthLog({
+          user_id: uid,
+          date: dateStr,
+          workout_completed: isDone ? 1 : 0,
+          workout_title: String(task.title),
+          workout_minutes: Number(task.duration_minutes || 30),
+        });
+      }
+
+      // 4. Synchronize linked goal progress
+      if (task.goal_id) {
         const statsRes = await db.execute({
           sql: "SELECT COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done FROM daily_tasks WHERE goal_id = ?",
-          args: [goalId],
+          args: [task.goal_id],
         });
         const total = Number(statsRes.rows[0]?.total || 0);
         const done = Number(statsRes.rows[0]?.done || 0);
         const progress = total > 0 ? Math.round((done / total) * 100) : 0;
         await db.execute({
-          sql: "UPDATE goals SET progress = ?, status = CASE WHEN ? = 100 THEN 'completed' ELSE 'in_progress' END WHERE id = ?",
-          args: [progress, progress, goalId],
+          sql: "UPDATE goals SET progress = ?, status = CASE WHEN ? >= 100 THEN 'completed' ELSE 'in_progress' END WHERE id = ?",
+          args: [progress, progress, task.goal_id],
         });
       }
-    } catch (_) {}
+    }
+  } catch (syncErr) {
+    console.error("Error in updateDailyTask cross-sync:", syncErr);
   }
 }
 
@@ -571,6 +690,7 @@ export async function getHabitsWithTodayStatus(
 
   const habits = habitsRes.rows as unknown as Habit[];
 
+  // 1. Read habit logs for dateStr
   const logsRes = await db.execute({
     sql: `SELECT hl.habit_id, hl.completed
           FROM habit_logs hl
@@ -584,16 +704,79 @@ export async function getHabitsWithTodayStatus(
     logsMap.set(String(row.habit_id), Number(row.completed));
   }
 
-  // Calculate streaks
-  for (const h of habits) {
-    h.completed_today = (logsMap.get(h.id) ?? 0) === 1;
+  // 2. Read completed daily tasks for dateStr
+  const tasksRes = await db.execute({
+    sql: `SELECT habit_id, title FROM daily_tasks
+          WHERE user_id = ? AND date = ? AND status = 'completed'`,
+    args: [userId, dateStr],
+  });
 
-    // Approximate recent streak (last 7 days completed count)
-    const streakRes = await db.execute({
-      sql: `SELECT COUNT(*) as count FROM habit_logs WHERE habit_id = ? AND completed = 1`,
-      args: [h.id],
-    });
-    h.current_streak = Number(streakRes.rows[0]?.count || 0);
+  const completedHabitIdsFromTasks = new Set<string>();
+  for (const t of tasksRes.rows) {
+    if (t.habit_id) {
+      completedHabitIdsFromTasks.add(String(t.habit_id));
+    } else {
+      const hid = getHabitIdForTask(String(t.title));
+      if (hid) completedHabitIdsFromTasks.add(hid);
+    }
+  }
+
+  // 3. Query all completed dates for userId across habit_logs and daily_tasks
+  const allCompletedLogsRes = await db.execute({
+    sql: `SELECT hl.habit_id, hl.date FROM habit_logs hl
+          JOIN habits h ON hl.habit_id = h.id
+          WHERE h.user_id = ? AND hl.completed = 1`,
+    args: [userId],
+  });
+
+  const allCompletedTasksRes = await db.execute({
+    sql: `SELECT habit_id, title, date FROM daily_tasks
+          WHERE user_id = ? AND status = 'completed'`,
+    args: [userId],
+  });
+
+  const completionSet = new Set<string>(); // `${habitId}_${date}`
+  for (const r of allCompletedLogsRes.rows) {
+    completionSet.add(`${r.habit_id}_${r.date}`);
+  }
+  for (const r of allCompletedTasksRes.rows) {
+    const hid = r.habit_id ? String(r.habit_id) : getHabitIdForTask(String(r.title));
+    if (hid) {
+      completionSet.add(`${hid}_${r.date}`);
+    }
+  }
+
+  // 4. Calculate actual consecutive day streaks backwards
+  const baseD = new Date(`${dateStr}T12:00:00Z`);
+
+  for (const h of habits) {
+    const isDoneToday = (logsMap.get(h.id) ?? 0) === 1 || completedHabitIdsFromTasks.has(h.id);
+    h.completed_today = isDoneToday;
+
+    let streak = 0;
+    let checkDate = new Date(baseD);
+
+    while (true) {
+      const dStr = checkDate.toISOString().split("T")[0];
+      if (completionSet.has(`${h.id}_${dStr}`)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        // If today is not completed yet, check yesterday to preserve ongoing streak
+        if (streak === 0 && dStr === dateStr) {
+          checkDate.setDate(checkDate.getDate() - 1);
+          const yStr = checkDate.toISOString().split("T")[0];
+          if (completionSet.has(`${h.id}_${yStr}`)) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+            continue;
+          }
+        }
+        break;
+      }
+    }
+
+    h.current_streak = streak;
   }
 
   return habits;
@@ -626,22 +809,31 @@ export async function toggleHabitLog(
     h_family: "Family",
     h_fin_track: "Planning",
     h_sleep: "Sleep",
+    h_wake: "Wake",
   };
 
-  const kw = habitKeywords[habitId];
-  if (kw) {
-    await db.execute({
-      sql: `UPDATE daily_tasks SET status = ?, completed_at = ?
-            WHERE user_id = ? AND date = ? AND title LIKE ?`,
-      args: [
-        completed ? "completed" : "upcoming",
-        completed ? new Date().toISOString() : null,
-        userId,
-        dateStr,
-        `%${kw}%`,
-      ],
+  let kw = habitKeywords[habitId] || "";
+  if (!kw) {
+    const habitRes = await db.execute({
+      sql: "SELECT name FROM habits WHERE id = ? LIMIT 1",
+      args: [habitId],
     });
+    kw = habitRes.rows[0]?.name ? String(habitRes.rows[0]?.name) : "";
   }
+
+  await db.execute({
+    sql: `UPDATE daily_tasks SET status = ?, completed_at = ?
+          WHERE user_id = ? AND date = ? AND (habit_id = ? OR (title LIKE ? AND ? != ''))`,
+    args: [
+      completed ? "completed" : "upcoming",
+      completed ? new Date().toISOString() : null,
+      userId,
+      dateStr,
+      habitId,
+      `%${kw}%`,
+      kw,
+    ],
+  });
 
   // Cross-synchronize prayer logs if prayer habit
   if (habitId === "h_m_prayer") {

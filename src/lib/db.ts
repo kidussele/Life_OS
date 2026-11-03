@@ -494,6 +494,14 @@ export async function initDatabase() {
   } catch (_) {}
 
   try {
+    await db.execute("ALTER TABLE daily_tasks ADD COLUMN habit_id TEXT");
+  } catch (_) {}
+
+  try {
+    await db.execute("ALTER TABLE daily_tasks ADD COLUMN schedule_block_id TEXT");
+  } catch (_) {}
+
+  try {
     await db.execute("ALTER TABLE goals ADD COLUMN target_value REAL DEFAULT 100");
   } catch (_) {}
 

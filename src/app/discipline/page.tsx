@@ -32,6 +32,7 @@ interface HabitItem {
   category: string;
   status: "Completed" | "In Progress" | "Pending";
   completed: boolean;
+  currentStreak?: number;
 }
 
 export default function DisciplinePage() {
@@ -185,6 +186,7 @@ export default function DisciplinePage() {
                 return {
                   ...item,
                   completed: isCompleted,
+                  currentStreak: Number(dbItem.current_streak || 0),
                   status: isCompleted ? "Completed" : item.status === "In Progress" ? "In Progress" : "Pending",
                 };
               }
@@ -200,6 +202,7 @@ export default function DisciplinePage() {
                 return {
                   ...item,
                   completed: isCompleted,
+                  currentStreak: Number(dbItem.current_streak || 0),
                   status: isCompleted ? "Completed" : item.status === "In Progress" ? "In Progress" : "Pending",
                 };
               }
@@ -540,13 +543,20 @@ export default function DisciplinePage() {
                       </div>
 
                       {/* Status Pill on Right */}
-                      <span
-                        className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ml-2 ${getStatusBadge(
-                          item.status
-                        )}`}
-                      >
-                        {item.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                        {Boolean(item.currentStreak && item.currentStreak > 0) && (
+                          <span className="text-[10px] font-bold text-[#D97706] bg-[#FEF3C7] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            🔥 {item.currentStreak}d
+                          </span>
+                        )}
+                        <span
+                          className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full ${getStatusBadge(
+                            item.status
+                          )}`}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
@@ -587,13 +597,20 @@ export default function DisciplinePage() {
                       </div>
 
                       {/* Status Pill on Right */}
-                      <span
-                        className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ml-2 ${getStatusBadge(
-                          item.status
-                        )}`}
-                      >
-                        {item.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                        {Boolean(item.currentStreak && item.currentStreak > 0) && (
+                          <span className="text-[10px] font-bold text-[#D97706] bg-[#FEF3C7] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            🔥 {item.currentStreak}d
+                          </span>
+                        )}
+                        <span
+                          className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full ${getStatusBadge(
+                            item.status
+                          )}`}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}

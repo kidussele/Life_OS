@@ -4,10 +4,11 @@ import { getDailyTasks, updateDailyTask, createDailyTask, rescheduleTask } from 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId") || "user_kidus_01";
     const dateStr = searchParams.get("date") || new Date().toISOString().split("T")[0];
     const tz = searchParams.get("timezone") || undefined;
-    const tasks = await getDailyTasks("user_kidus_01", dateStr, tz);
-    return NextResponse.json({ tasks, date: dateStr, timezone: tz });
+    const tasks = await getDailyTasks(userId, dateStr, tz);
+    return NextResponse.json({ tasks, date: dateStr, timezone: tz, userId });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -16,8 +17,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const userId = body.user_id || "user_kidus_01";
     const created = await createDailyTask({
-      user_id: "user_kidus_01",
+      user_id: userId,
       ...body,
     });
     return NextResponse.json({ task: created });

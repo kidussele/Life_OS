@@ -60,6 +60,7 @@ const navItems: NavItem[] = [
   { name: "Financial Management", href: "/finances", icon: Wallet },
   { name: "Health & Fitness", href: "/health", icon: Activity },
   { name: "Family & Relations", href: "/family", icon: Users },
+  { name: "Analysis", href: "/analysis", icon: Activity, badge: "Metrics" },
   { name: "Reports & Stats", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];

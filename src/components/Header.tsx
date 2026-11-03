@@ -47,6 +47,7 @@ const SEARCH_MODULES = [
   { name: "Financial Management", href: "/finances", category: "Finance", desc: "Income, expense ledger, savings & emergency reserve" },
   { name: "Health & Fitness", href: "/health", category: "Health", desc: "Workouts, mobility, nutrition and recovery metrics" },
   { name: "Family & Relations", href: "/family", category: "Family", desc: "Family duty, calls and meaningful relationships" },
+  { name: "Analysis", href: "/analysis", category: "Analytics", desc: "Live analytical charts, completion trends & habit adherence" },
   { name: "Reports & Stats", href: "/reports", category: "Analytics", desc: "Weekly discipline reports and domain analysis" },
   { name: "Settings", href: "/settings", category: "System", desc: "Timezone, preferences, notifications & data reset" },
 ];
