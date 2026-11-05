@@ -21,6 +21,9 @@ import {
   Flame,
   Clock,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
 
 import { useTimeEngine } from "@/hooks/useTimeEngine";
@@ -37,15 +40,38 @@ interface HabitItem {
 
 export default function DisciplinePage() {
   const { now } = useTimeEngine();
-  const [selectedDate, setSelectedDate] = useState<string>("2026-11-02");
+  const [selectedDate, setSelectedDate] = useState<string>("2026-11-05");
+  const [dateInitialized, setDateInitialized] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
   const [isAddHabitModalOpen, setIsAddHabitModalOpen] = useState(false);
 
   useEffect(() => {
+    if (now?.dateStr && !dateInitialized) {
+      setSelectedDate(now.dateStr);
+      setDateInitialized(true);
+    }
+  }, [now?.dateStr, dateInitialized]);
+
+  const handlePrevDay = () => {
+    const d = new Date(`${selectedDate}T12:00:00Z`);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().split("T")[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(`${selectedDate}T12:00:00Z`);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().split("T")[0]);
+  };
+
+  const handleSetToday = () => {
     if (now?.dateStr) {
       setSelectedDate(now.dateStr);
+    } else {
+      setSelectedDate(new Date().toISOString().split("T")[0]);
     }
-  }, [now?.dateStr]);
+  };
 
   // New Habit form fields
   const [newHabitName, setNewHabitName] = useState("");
@@ -234,7 +260,7 @@ export default function DisciplinePage() {
     };
   }, [selectedDate]);
 
-  // Toggle habit status
+  // Toggle habit status (direct completed <-> pending toggle with DB sync)
   const handleToggleHabit = async (id: string, isLeft: boolean) => {
     const target = isLeft
       ? leftHabits.find((h) => h.id === id)
@@ -242,19 +268,8 @@ export default function DisciplinePage() {
 
     if (!target) return;
 
-    let nextStatus: "Completed" | "In Progress" | "Pending";
-    let nextCompleted = false;
-
-    if (target.status === "Pending") {
-      nextStatus = "In Progress";
-      nextCompleted = false;
-    } else if (target.status === "In Progress") {
-      nextStatus = "Completed";
-      nextCompleted = true;
-    } else {
-      nextStatus = "Pending";
-      nextCompleted = false;
-    }
+    const nextCompleted = !target.completed;
+    const nextStatus: "Completed" | "Pending" = nextCompleted ? "Completed" : "Pending";
 
     if (isLeft) {
       setLeftHabits((prev) =>
@@ -282,15 +297,47 @@ export default function DisciplinePage() {
         window.dispatchEvent(new CustomEvent("life_os_task_updated"));
         window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
       }
+
+      // Refresh to update streak numbers and weekly chart
+      setTimeout(() => fetchHabits(selectedDate), 300);
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Mark all as complete
-  const handleMarkAllComplete = () => {
+  // Mark all as complete (persisted directly to Turso DB)
+  const handleMarkAllComplete = async () => {
+    setMarkingAll(true);
     setLeftHabits((prev) => prev.map((h) => ({ ...h, status: "Completed", completed: true })));
     setRightHabits((prev) => prev.map((h) => ({ ...h, status: "Completed", completed: true })));
+
+    const allHabitIds = [...leftHabits, ...rightHabits].map((h) => h.id);
+    try {
+      await Promise.all(
+        allHabitIds.map((habitId) =>
+          fetch("/api/habits", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              habitId,
+              date: selectedDate,
+              completed: true,
+            }),
+          }).catch((err) => console.error("Error saving habit:", habitId, err))
+        )
+      );
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("life_os_habit_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_task_updated"));
+        window.dispatchEvent(new CustomEvent("life_os_goal_updated"));
+      }
+      await fetchHabits(selectedDate);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setMarkingAll(false);
+    }
   };
 
   // Add new habit
@@ -485,25 +532,73 @@ export default function DisciplinePage() {
               LEFT COLUMN (col-span-8): Daily Discipline Checklist
               ────────────────────────────────────────────────────────── */}
           <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-[#E2EAE5] shadow-xs space-y-5">
-            {/* Header: Title + "Mark All Complete" button */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#F0F4F1]">
+            {/* Header: Title + Date Controls + "Mark All Complete" button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0F4F1] gap-3">
               <div className="flex items-center space-x-2.5">
                 <div className="w-7 h-7 rounded-lg bg-[#EBF5EE] text-[#165B33] flex items-center justify-center flex-shrink-0">
                   <CalendarIcon size={16} />
                 </div>
                 <h3 className="text-[15px] font-extrabold text-[#112318]">
-                  Daily Discipline Checklist ({selectedDate})
+                  Daily Discipline Checklist
                 </h3>
               </div>
 
-              <button
-                type="button"
-                onClick={handleMarkAllComplete}
-                className="bg-[#EBF5EE] hover:bg-[#D8EEDF] text-[#165B33] text-[11.5px] font-bold px-3 py-1 rounded-full border border-[#B7E4C7] flex items-center gap-1 transition-colors"
-              >
-                <Check size={13} strokeWidth={2.5} />
-                <span>Mark All Complete</span>
-              </button>
+              {/* Date Navigation & Mark All Complete */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Date Stepper */}
+                <div className="flex items-center bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl px-2 py-1 gap-1.5 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={handlePrevDay}
+                    title="Previous day"
+                    className="p-1 rounded-lg hover:bg-white text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="text-[12px] font-bold text-[#0F172A] bg-transparent border-none focus:outline-none cursor-pointer"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleNextDay}
+                    title="Next day"
+                    className="p-1 rounded-lg hover:bg-white text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+
+                {/* Return to Today pill if not today */}
+                {now?.dateStr && selectedDate !== now.dateStr && (
+                  <button
+                    type="button"
+                    onClick={handleSetToday}
+                    className="text-[11px] font-bold text-[#165B33] bg-[#EBF5EE] hover:bg-[#D8EEDF] px-2.5 py-1.5 rounded-xl border border-[#B7E4C7] transition-colors cursor-pointer"
+                  >
+                    Today
+                  </button>
+                )}
+
+                {/* Mark All Complete */}
+                <button
+                  type="button"
+                  onClick={handleMarkAllComplete}
+                  disabled={markingAll}
+                  className="bg-[#EBF5EE] hover:bg-[#D8EEDF] text-[#165B33] text-[11.5px] font-bold px-3 py-1.5 rounded-full border border-[#B7E4C7] flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
+                >
+                  {markingAll ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Check size={13} strokeWidth={2.5} />
+                  )}
+                  <span>{markingAll ? "Saving..." : "Mark All Complete"}</span>
+                </button>
+              </div>
             </div>
 
             {/* 2-Column Checklist Grid */}

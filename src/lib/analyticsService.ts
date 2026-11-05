@@ -201,10 +201,20 @@ export async function getHabitAnalytics(
   });
   const habits = habitsRes.rows as any[];
 
-  // Eligible days in range
+  // Eligible days in range (respects user's journey start date so days prior to starting are not counted as missed)
+  const userRes = await db.execute({
+    sql: "SELECT journey_start_date FROM users WHERE id = ? LIMIT 1",
+    args: [userId],
+  });
+  const journeyStartDate = (userRes.rows[0]?.journey_start_date as string) || "2026-11-02";
+
   const startD = new Date(`${startDate}T12:00:00Z`);
   const endD = new Date(`${endDate}T12:00:00Z`);
   const dayCount = Math.max(1, Math.round((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+  const effectiveStartDate = startDate < journeyStartDate ? journeyStartDate : startDate;
+  const effStartD = new Date(`${effectiveStartDate}T12:00:00Z`);
+  const effectiveDayCount = Math.max(1, Math.round((endD.getTime() - effStartD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
   // Read all habit logs in range
   const logsRes = await db.execute({
@@ -272,7 +282,7 @@ export async function getHabitAnalytics(
 
   // Calculate streaks and per-habit metrics
   const habitItems = [];
-  let totalEligibleOccurrences = habits.length * dayCount;
+  let totalEligibleOccurrences = habits.length * effectiveDayCount;
   let totalCompletedOccurrences = 0;
 
   for (const h of habits) {
@@ -312,27 +322,27 @@ export async function getHabitAnalytics(
       }
     }
 
-    const adherence = dayCount > 0 ? Math.round((completedInRange / dayCount) * 100) : 0;
+    const adherence = effectiveDayCount > 0 ? Math.min(100, Math.round((completedInRange / effectiveDayCount) * 100)) : 0;
 
     habitItems.push({
       id: h.id,
       name: h.name,
       category: h.category,
       completedCount: completedInRange,
-      eligibleCount: dayCount,
+      eligibleCount: effectiveDayCount,
       adherence,
       currentStreak,
     });
   }
 
   const overallAdherence = totalEligibleOccurrences > 0
-    ? Math.round((totalCompletedOccurrences / totalEligibleOccurrences) * 100)
+    ? Math.min(100, Math.round((totalCompletedOccurrences / totalEligibleOccurrences) * 100))
     : 0;
 
   return {
     startDate,
     endDate,
-    dayCount,
+    dayCount: effectiveDayCount,
     totalHabits: habits.length,
     totalEligibleOccurrences,
     totalCompletedOccurrences,

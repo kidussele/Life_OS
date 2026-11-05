@@ -2,8 +2,28 @@ import { createClient } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 
-const url = process.env.TURSO_DATABASE_URL || `file:${path.resolve(process.cwd(), "life_os.db")}`;
-const authToken = process.env.TURSO_AUTH_TOKEN;
+let envUrl = process.env.TURSO_DATABASE_URL;
+let envToken = process.env.TURSO_AUTH_TOKEN;
+
+if (!envUrl && typeof process !== "undefined" && typeof process.cwd === "function") {
+  try {
+    const envPath = path.resolve(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("TURSO_DATABASE_URL=")) {
+          envUrl = trimmed.slice("TURSO_DATABASE_URL=".length).trim().replace(/^["']|["']$/g, "");
+        } else if (trimmed.startsWith("TURSO_AUTH_TOKEN=")) {
+          envToken = trimmed.slice("TURSO_AUTH_TOKEN=".length).trim().replace(/^["']|["']$/g, "");
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+const url = envUrl || `file:${path.resolve(process.cwd(), "life_os.db")}`;
+const authToken = envToken;
 
 export const db = createClient({
   url,
