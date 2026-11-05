@@ -68,14 +68,23 @@ export default function AnalysisPage() {
     }
   };
 
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const CHART_LEFT = 42;
+  const CHART_RIGHT = 480;
+  const CHART_TOP = 20;
+  const CHART_BOTTOM = 120;
+  const CHART_WIDTH = CHART_RIGHT - CHART_LEFT;
+  const CHART_HEIGHT = CHART_BOTTOM - CHART_TOP;
+
   const trendPoints =
     data?.completionTrend && data.completionTrend.length > 0
       ? data.completionTrend.map((d: any, idx: number) => {
           const count = data.completionTrend.length;
-          const spacing = count > 1 ? 280 / (count - 1) : 140;
+          const spacing = count > 1 ? CHART_WIDTH / (count - 1) : CHART_WIDTH / 2;
           return {
-            x: 20 + idx * spacing,
-            y: 110 - Math.round(((d.percent || 0) / 100) * 85),
+            x: count > 1 ? CHART_LEFT + idx * spacing : (CHART_LEFT + CHART_RIGHT) / 2,
+            y: CHART_BOTTOM - Math.round(((d.percent || 0) / 100) * CHART_HEIGHT),
             label: d.dayLabel || d.date.slice(5),
             percent: d.percent || 0,
             date: d.date,
@@ -87,9 +96,18 @@ export default function AnalysisPage() {
 
   const polylinePoints = trendPoints.map((p: any) => `${p.x},${p.y}`).join(" ");
   const polygonPoints =
-    trendPoints.length > 0
-      ? `20,110 20,${trendPoints[0].y} ` + polylinePoints + ` ${trendPoints[trendPoints.length - 1].x},110`
+    trendPoints.length > 1
+      ? `${CHART_LEFT},${CHART_BOTTOM} ${CHART_LEFT},${trendPoints[0].y} ` +
+        polylinePoints +
+        ` ${CHART_RIGHT},${trendPoints[trendPoints.length - 1].y} ${CHART_RIGHT},${CHART_BOTTOM}`
       : "";
+
+  const labelStep =
+    trendPoints.length > 14
+      ? Math.ceil(trendPoints.length / 8)
+      : trendPoints.length > 7
+      ? 2
+      : 1;
 
   const activeForex = data?.forex ? data.forex[forexTab] : null;
 
@@ -305,55 +323,178 @@ export default function AnalysisPage() {
             {/* SVG Trend Graph */}
             <div className="py-4">
               {trendPoints.length > 0 ? (
-                <div className="h-44 w-full relative">
-                  <svg viewBox="0 0 320 130" className="w-full h-full overflow-visible">
+                <div className="h-52 w-full relative">
+                  <svg
+                    viewBox="0 0 500 160"
+                    className="w-full h-full overflow-visible"
+                    preserveAspectRatio="xMidYMid meet"
+                    onMouseLeave={() => setHoveredIdx(null)}
+                  >
                     <defs>
                       <linearGradient id="anaTrendArea" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#16A34A" stopOpacity="0.25" />
+                        <stop offset="0%" stopColor="#16A34A" stopOpacity="0.28" />
                         <stop offset="100%" stopColor="#16A34A" stopOpacity="0.0" />
+                      </linearGradient>
+                      <linearGradient id="anaSingleBar" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#16A34A" stopOpacity="0.35" />
+                        <stop offset="100%" stopColor="#16A34A" stopOpacity="0.05" />
                       </linearGradient>
                     </defs>
 
-                    {/* Gradient Fill */}
-                    <polygon points={polygonPoints} fill="url(#anaTrendArea)" />
-
-                    {/* Polyline */}
-                    <polyline
-                      fill="none"
-                      stroke="#16A34A"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      points={polylinePoints}
-                    />
-
-                    {/* Nodes */}
-                    {trendPoints.map((pt: any, i: number) => (
-                      <circle
-                        key={i}
-                        cx={pt.x}
-                        cy={pt.y}
-                        r="3.5"
-                        fill="#FFFFFF"
-                        stroke="#16A34A"
-                        strokeWidth="2"
+                    {/* Y-Axis Horizontal Grid Lines & Percent Labels */}
+                    <g className="grid-lines" stroke="#E2E8F0" strokeDasharray="3 3" strokeWidth="1">
+                      {/* 100% Line */}
+                      <line x1={CHART_LEFT} y1={CHART_TOP} x2={CHART_RIGHT} y2={CHART_TOP} />
+                      {/* 50% Line */}
+                      <line
+                        x1={CHART_LEFT}
+                        y1={CHART_TOP + CHART_HEIGHT / 2}
+                        x2={CHART_RIGHT}
+                        y2={CHART_TOP + CHART_HEIGHT / 2}
                       />
-                    ))}
+                      {/* 0% Line (Solid Base) */}
+                      <line
+                        x1={CHART_LEFT}
+                        y1={CHART_BOTTOM}
+                        x2={CHART_RIGHT}
+                        y2={CHART_BOTTOM}
+                        stroke="#CBD5E1"
+                        strokeDasharray="none"
+                      />
+                    </g>
 
-                    {/* Labels */}
-                    {trendPoints.map((d: any, i: number) => (
-                      <text
-                        key={i}
-                        x={d.x}
-                        y="125"
-                        textAnchor="middle"
-                        fontSize="8.5"
-                        fill="#94A3B8"
-                        fontWeight="500"
-                      >
-                        {d.label}
+                    <g className="grid-labels" fill="#94A3B8" fontSize="9" fontWeight="600" textAnchor="end">
+                      <text x={CHART_LEFT - 8} y={CHART_TOP + 3}>
+                        100%
                       </text>
-                    ))}
+                      <text x={CHART_LEFT - 8} y={CHART_TOP + CHART_HEIGHT / 2 + 3}>
+                        50%
+                      </text>
+                      <text x={CHART_LEFT - 8} y={CHART_BOTTOM + 3}>
+                        0%
+                      </text>
+                    </g>
+
+                    {/* Gradient Area Fill (Multiple Points) */}
+                    {trendPoints.length > 1 && polygonPoints && (
+                      <polygon points={polygonPoints} fill="url(#anaTrendArea)" />
+                    )}
+
+                    {/* Polyline (Multiple Points) */}
+                    {trendPoints.length > 1 && (
+                      <polyline
+                        fill="none"
+                        stroke="#16A34A"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={polylinePoints}
+                      />
+                    )}
+
+                    {/* Single Point Representation (e.g. "Today" filter) */}
+                    {trendPoints.length === 1 && (
+                      <g className="single-day-view">
+                        {/* Vertical Pillar / Bar */}
+                        <rect
+                          x={trendPoints[0].x - 18}
+                          y={trendPoints[0].y}
+                          width={36}
+                          height={Math.max(4, CHART_BOTTOM - trendPoints[0].y)}
+                          fill="url(#anaSingleBar)"
+                          rx="4"
+                        />
+                        {/* Horizontal guide line */}
+                        <line
+                          x1={CHART_LEFT}
+                          y1={trendPoints[0].y}
+                          x2={CHART_RIGHT}
+                          y2={trendPoints[0].y}
+                          stroke="#16A34A"
+                          strokeDasharray="4 4"
+                          strokeWidth="1.5"
+                          opacity="0.6"
+                        />
+                      </g>
+                    )}
+
+                    {/* Data Points */}
+                    {trendPoints.map((pt: any, i: number) => {
+                      const isHovered = hoveredIdx === i;
+                      return (
+                        <g key={i}>
+                          {/* Visible Node Circle */}
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r={isHovered ? "5.5" : "3.5"}
+                            fill="#FFFFFF"
+                            stroke="#16A34A"
+                            strokeWidth={isHovered ? "3" : "2"}
+                            className="transition-all duration-150"
+                          />
+                          {/* Invisible larger hit target for smooth hover */}
+                          <circle
+                            cx={pt.x}
+                            cy={pt.y}
+                            r="14"
+                            fill="transparent"
+                            className="cursor-pointer"
+                            onMouseEnter={() => setHoveredIdx(i)}
+                          >
+                            <title>{`${pt.date} (${pt.label}): ${pt.percent}% (${pt.completed}/${pt.total} tasks completed)`}</title>
+                          </circle>
+                        </g>
+                      );
+                    })}
+
+                    {/* X-Axis Date & Day Labels (Throttled to avoid overlap) */}
+                    {trendPoints.map((d: any, i: number) => {
+                      const show = i % labelStep === 0 || i === trendPoints.length - 1;
+                      if (!show) return null;
+                      return (
+                        <text
+                          key={i}
+                          x={d.x}
+                          y="142"
+                          textAnchor="middle"
+                          fontSize="9"
+                          fill="#64748B"
+                          fontWeight="600"
+                        >
+                          {d.label}
+                        </text>
+                      );
+                    })}
+
+                    {/* Tooltip on Hover */}
+                    {hoveredIdx !== null && trendPoints[hoveredIdx] && (
+                      <g className="tooltip" transform={`translate(${trendPoints[hoveredIdx].x}, ${Math.max(15, trendPoints[hoveredIdx].y - 32)})`}>
+                        <rect
+                          x="-50"
+                          y="-14"
+                          width="100"
+                          height="24"
+                          rx="6"
+                          fill="#0F172A"
+                          opacity="0.95"
+                        />
+                        <text
+                          x="0"
+                          y="2"
+                          textAnchor="middle"
+                          fill="#4ADE80"
+                          fontSize="10"
+                          fontWeight="700"
+                          fontFamily="monospace"
+                        >
+                          {trendPoints[hoveredIdx].percent}%
+                          <tspan fill="#E2E8F0" fontWeight="500" fontSize="8.5">
+                            {" "}• {trendPoints[hoveredIdx].completed}/{trendPoints[hoveredIdx].total}
+                          </tspan>
+                        </text>
+                      </g>
+                    )}
                   </svg>
                 </div>
               ) : (
